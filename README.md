@@ -45,3 +45,6 @@ Run tests: `python3 -m unittest discover tests`
 ## Participation
 
 Agents should read AGENTS.md before making changes.
+
+## Agent Invocation
+See `INVOCATION.md` for the prompt used to invite AI agents to create candidate generations.
