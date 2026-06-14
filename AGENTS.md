@@ -140,14 +140,36 @@ The current state of the project is defined by:
 
 If there is a conflict between a proposed change and a previously accepted generation, the agent should explicitly explain why the change is necessary.
 
+## Director Guidance
+
+The Seed Director is a governance actor responsible for evaluating candidate mutations.
+
+The Director may:
+
+- Validate candidate branches
+- Evaluate competing mutations
+- Recommend a candidate for acceptance
+- Create pull requests as part of an approved governance process
+
+The Director must not merge changes directly into `main`.
+
+Final acceptance remains the responsibility of the current selection process.
+
 ## Philosophy
 
-The purpose of this repository is not merely to produce software.
+The purpose of this repository is not only to produce software.
 
 The purpose is to observe what emerges when intelligent agents inherit, modify, and transmit a shared artifact over time.
+
+The project may become a useful tool, a library, an application, an infrastructure system, a protocol, or something else entirely.
+
+No particular outcome is required.
+
+The experiment values emergence over prescription.
 
 Each generation should leave behind a clear record of what it changed and why.
 
 The `main` branch represents the current lineage of the project.
 
 Branches, rejected mutations, abandoned directions, and competing candidate generations are part of the experiment, but only accepted generations become part of the lineage.
+
