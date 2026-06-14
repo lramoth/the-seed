@@ -7,7 +7,9 @@ from seed.evolution import (
     Generation,
     current_generation,
     export_evolution_log,
+    next_generation_number,
     parse_evolution_log,
+    preflight_evolution_log,
     validate_evolution_log,
 )
 
@@ -152,6 +154,69 @@ class TestCurrentGeneration(unittest.TestCase):
             self.assertIsNone(result)
         finally:
             p.unlink(missing_ok=True)
+
+
+class TestNextGenerationNumber(unittest.TestCase):
+    def setUp(self):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(SAMPLE_LOG)
+        tmp.close()
+        self.path = Path(tmp.name)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_next_number(self):
+        self.assertEqual(next_generation_number(self.path), 2)
+
+    def test_returns_none_for_empty_log(self):
+        empty = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        empty.write("# Evolution Log\n")
+        empty.close()
+        p = Path(empty.name)
+        try:
+            self.assertIsNone(next_generation_number(p))
+        finally:
+            p.unlink(missing_ok=True)
+
+
+class TestPreflightEvolutionLog(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def test_valid_log_reports_branch_guidance(self):
+        path = self._write_log(SAMPLE_LOG)
+        try:
+            report = preflight_evolution_log(path)
+            self.assertTrue(report.is_valid)
+            self.assertEqual(report.current_generation, 1)
+            self.assertEqual(report.next_generation, 2)
+            self.assertEqual(report.branch_prefix, "gen-2-")
+            self.assertEqual(report.issues, [])
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_invalid_log_reports_issues_without_branch_guidance(self):
+        bad_log = SAMPLE_LOG.replace("## Generation 1", "## Generation 3")
+        path = self._write_log(bad_log)
+        try:
+            report = preflight_evolution_log(path)
+            self.assertFalse(report.is_valid)
+            self.assertEqual(report.current_generation, 3)
+            self.assertIsNone(report.next_generation)
+            self.assertIsNone(report.branch_prefix)
+            self.assertTrue(any("contiguous" in issue.message for issue in report.issues))
+        finally:
+            path.unlink(missing_ok=True)
 
 
 class TestValidateEvolutionLog(unittest.TestCase):

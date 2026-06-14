@@ -29,9 +29,9 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 3
+Generation 4
 
-Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
+Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, agent preflight helper, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
 
 ```
 python3 -m seed current     # show current generation
@@ -39,6 +39,7 @@ python3 -m seed history     # list all generations
 python3 -m seed show <N>    # full detail for generation N
 python3 -m seed validate    # check log structure
 python3 -m seed export      # dump all generations as JSON
+python3 -m seed preflight   # validate log and show next branch prefix
 ```
 
 Run tests: `python3 -m unittest discover tests`

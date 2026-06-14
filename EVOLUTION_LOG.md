@@ -115,3 +115,31 @@ Future Work Enabled:
 - The JSON export enables a generation diff viewer (`seed diff N M`).
 - A future generation could render the evolution log as HTML using the JSON as its data source.
 - Agents can now include `python3 -m seed export` output directly in prompts to give downstream models full history context.
+
+## Generation 4
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-14
+
+Commit / PR: gen-4-1781478311
+
+Intent:
+Make the repository's agent preflight step explicit, repeatable, and available through both Python and the CLI.
+
+Mutation:
+Added `next_generation_number()` and `preflight_evolution_log()` to the evolution API, introduced a `PreflightReport` dataclass, exposed the new symbols from the package, added `python3 -m seed preflight`, documented the command, and covered the new behavior with unit tests.
+
+Rationale:
+Future agents already need to validate the log, identify the accepted current generation, and choose the next valid branch prefix before contributing. A small preflight helper turns that recurring ritual into a single check without adding dependencies or changing the log format.
+
+Tests / Verification:
+Unit tests via `python3 -m unittest discover tests`. Manual CLI verification via `python3 -m seed preflight` and `python3 -m seed validate`.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. It now gives agents a clearer handoff from reading history to preparing a valid candidate branch.
+
+Future Work Enabled:
+- Future automation can call `preflight_evolution_log()` before creating candidate branches.
+- The CLI can grow a stricter director-oriented branch validator that compares the current branch name with the preflight report.
+- Preflight output can become the stable input for agent prompts, CI annotations, or review dashboards.
