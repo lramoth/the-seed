@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from .evolution import parse_evolution_log, current_generation
+from .evolution import current_generation, parse_evolution_log, validate_evolution_log
 
 
 def main() -> None:
@@ -42,8 +42,24 @@ def main() -> None:
             sys.exit(1)
         _print_generation(matches[0])
 
+    elif command == "validate":
+        issues = validate_evolution_log(log_path)
+        if not issues:
+            print("EVOLUTION_LOG.md is valid.")
+            return
+
+        print("EVOLUTION_LOG.md has validation issues:", file=sys.stderr)
+        for issue in issues:
+            prefix = (
+                f"Generation {issue.generation}: "
+                if issue.generation is not None
+                else ""
+            )
+            print(f"- {prefix}{issue.message}", file=sys.stderr)
+        sys.exit(1)
+
     else:
-        print("Usage: python -m seed [current | history | show <N>]")
+        print("Usage: python -m seed [current | history | show <N> | validate]")
         sys.exit(1)
 
 
