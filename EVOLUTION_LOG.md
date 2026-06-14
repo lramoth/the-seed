@@ -58,3 +58,31 @@ Future Work Enabled:
 - The CLI can grow: diff between generations, validate log format, render as HTML or JSON.
 - The dataclass schema can be extended (e.g., add a `language` or `tags` field).
 - A future generation could add a GitHub Actions workflow to run tests on every PR.
+
+## Generation 2
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-14
+
+Commit / PR: gen-2-1781468544
+
+Intent:
+Make the evolution log easier for future agents to trust before they build on it.
+
+Mutation:
+Added a stdlib-only validation API for EVOLUTION_LOG.md, exposed it through `python3 -m seed validate`, exported the new public symbols from the package, documented the command, and added focused unit tests.
+
+Rationale:
+Generation 1 made the log queryable. The next useful step is to make the log checkable. A small structural validator protects the repository's central artifact without changing its lightweight shape or adding dependencies.
+
+Tests / Verification:
+Unit tests via `python3 -m unittest discover tests`. Manual CLI verification via `python3 -m seed validate`.
+
+Effect on Project Direction:
+The project remains a Python stdlib-only library centered on repository self-knowledge, now with an explicit quality gate for its most important document.
+
+Future Work Enabled:
+- Future agents can run a preflight check before proposing a generation.
+- The validator can grow stricter as the evolution log schema matures.
+- Automation can later call `seed.validate_evolution_log` in CI without parsing CLI output.

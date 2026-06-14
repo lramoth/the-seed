@@ -3,7 +3,12 @@ import unittest
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from seed.evolution import Generation, current_generation, parse_evolution_log
+from seed.evolution import (
+    Generation,
+    current_generation,
+    parse_evolution_log,
+    validate_evolution_log,
+)
 
 
 SAMPLE_LOG = textwrap.dedent("""\
@@ -146,6 +151,61 @@ class TestCurrentGeneration(unittest.TestCase):
             self.assertIsNone(result)
         finally:
             p.unlink(missing_ok=True)
+
+
+class TestValidateEvolutionLog(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def test_valid_sample_has_no_issues(self):
+        path = self._write_log(SAMPLE_LOG)
+        try:
+            self.assertEqual(validate_evolution_log(path), [])
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_reports_empty_log(self):
+        path = self._write_log("# Evolution Log\n")
+        try:
+            issues = validate_evolution_log(path)
+            self.assertEqual(len(issues), 1)
+            self.assertIn("No generations", issues[0].message)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_reports_missing_required_field(self):
+        bad_log = SAMPLE_LOG.replace(
+            "Agent: Claude (Sonnet 4.6)",
+            "Agent:",
+        )
+        path = self._write_log(bad_log)
+        try:
+            issues = validate_evolution_log(path)
+            self.assertTrue(
+                any(
+                    issue.generation == 1
+                    and "Missing required field: Agent" in issue.message
+                    for issue in issues
+                )
+            )
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_reports_non_contiguous_generations(self):
+        bad_log = SAMPLE_LOG.replace("## Generation 1", "## Generation 3")
+        path = self._write_log(bad_log)
+        try:
+            issues = validate_evolution_log(path)
+            self.assertTrue(
+                any("contiguous" in issue.message for issue in issues)
+            )
+        finally:
+            path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

@@ -19,6 +19,12 @@ class Generation:
     future_work: str = ""
 
 
+@dataclass
+class ValidationIssue:
+    message: str
+    generation: int | None = None
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -30,6 +36,8 @@ _FIELD_MAP: dict[str, str] = {
     "effect on project direction": "effect",
     "future work enabled": "future_work",
 }
+
+_REQUIRED_FIELDS = tuple(_FIELD_MAP.values())
 
 _GEN_HEADER = re.compile(r"^## Generation (\d+)", re.MULTILINE)
 _FIELD_LINE = re.compile(r"^([A-Za-z/ ]+?):\s*(.*)")
@@ -52,6 +60,49 @@ def current_generation(path: Path | str = "EVOLUTION_LOG.md") -> Generation | No
     """Return the highest-numbered generation from the log."""
     gens = parse_evolution_log(path)
     return max(gens, key=lambda g: g.number) if gens else None
+
+
+def validate_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> list[ValidationIssue]:
+    """Return structural issues found in EVOLUTION_LOG.md."""
+    generations = parse_evolution_log(path)
+    issues: list[ValidationIssue] = []
+
+    if not generations:
+        return [ValidationIssue("No generations found.")]
+
+    seen: set[int] = set()
+    for gen in generations:
+        if gen.number in seen:
+            issues.append(
+                ValidationIssue(
+                    f"Generation {gen.number} appears more than once.",
+                    generation=gen.number,
+                )
+            )
+        seen.add(gen.number)
+
+        for field in _REQUIRED_FIELDS:
+            if not getattr(gen, field).strip():
+                issues.append(
+                    ValidationIssue(
+                        f"Missing required field: {_field_label(field)}.",
+                        generation=gen.number,
+                    )
+                )
+
+    numbers = [gen.number for gen in generations]
+    expected = list(range(min(numbers), max(numbers) + 1))
+    if numbers != expected:
+        issues.append(
+            ValidationIssue(
+                "Generation numbers should be contiguous and in ascending order."
+            )
+        )
+
+    if numbers and numbers[0] != 0:
+        issues.append(ValidationIssue("Generation history should start at Generation 0."))
+
+    return issues
 
 
 def _parse_generation(number: int, body: str) -> Generation:
@@ -78,3 +129,10 @@ def _parse_generation(number: int, body: str) -> Generation:
 
     flush()
     return gen
+
+
+def _field_label(attr: str) -> str:
+    for label, mapped_attr in _FIELD_MAP.items():
+        if mapped_attr == attr:
+            return label.title().replace("Pr", "PR")
+    return attr
