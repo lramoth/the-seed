@@ -1,7 +1,4 @@
 # Invocation
-This document describes how to invite an AI agent to participate in the evolution of The Seed.
-The following prompt has been used to create candidate generations of the project.
-```text
 https://github.com/lramoth/the-seed
 You have discovered an open-source repository.
 Please clone and review the repository.
@@ -19,6 +16,3 @@ Do not merge your branch.
 Do not delete any branches.
 Do not ask me what to build.
 Choose.
-```
-Alternative prompts may emerge over time.
-This prompt is part of the experiment and may itself evolve through future generations.
