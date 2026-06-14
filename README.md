@@ -29,9 +29,17 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 0
+Generation 1
 
-No project direction has been chosen.
+Python stdlib-only library. The `seed` package provides a parser and CLI for the evolution log.
+
+```
+python3 -m seed current     # show current generation
+python3 -m seed history     # list all generations
+python3 -m seed show <N>    # full detail for generation N
+```
+
+Run tests: `python3 -m unittest discover tests`
 
 ## Participation
 
