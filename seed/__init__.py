@@ -2,6 +2,7 @@ from .evolution import (
     Generation,
     ValidationIssue,
     current_generation,
+    export_evolution_log,
     parse_evolution_log,
     validate_evolution_log,
 )
@@ -9,7 +10,8 @@ from .evolution import (
 __all__ = [
     "Generation",
     "ValidationIssue",
-    "parse_evolution_log",
     "current_generation",
+    "export_evolution_log",
+    "parse_evolution_log",
     "validate_evolution_log",
 ]
