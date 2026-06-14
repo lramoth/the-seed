@@ -26,6 +26,18 @@ class ValidationIssue:
     generation: int | None = None
 
 
+@dataclass
+class PreflightReport:
+    current_generation: int | None
+    next_generation: int | None
+    branch_prefix: str | None
+    issues: list[ValidationIssue]
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.issues
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -61,6 +73,12 @@ def current_generation(path: Path | str = "EVOLUTION_LOG.md") -> Generation | No
     """Return the highest-numbered generation from the log."""
     gens = parse_evolution_log(path)
     return max(gens, key=lambda g: g.number) if gens else None
+
+
+def next_generation_number(path: Path | str = "EVOLUTION_LOG.md") -> int | None:
+    """Return the next generation number implied by the log."""
+    current = current_generation(path)
+    return current.number + 1 if current else None
 
 
 def validate_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> list[ValidationIssue]:
@@ -104,6 +122,21 @@ def validate_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> list[Valida
         issues.append(ValidationIssue("Generation history should start at Generation 0."))
 
     return issues
+
+
+def preflight_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> PreflightReport:
+    """Return validation and branch guidance for the next candidate generation."""
+    issues = validate_evolution_log(path)
+    current = current_generation(path)
+    next_generation = None if issues else next_generation_number(path)
+    branch_prefix = f"gen-{next_generation}-" if next_generation is not None else None
+
+    return PreflightReport(
+        current_generation=current.number if current else None,
+        next_generation=next_generation,
+        branch_prefix=branch_prefix,
+        issues=issues,
+    )
 
 
 def export_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> str:

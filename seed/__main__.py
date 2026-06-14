@@ -1,7 +1,13 @@
 import sys
 from pathlib import Path
 
-from .evolution import current_generation, export_evolution_log, parse_evolution_log, validate_evolution_log
+from .evolution import (
+    current_generation,
+    export_evolution_log,
+    parse_evolution_log,
+    preflight_evolution_log,
+    validate_evolution_log,
+)
 
 
 def main() -> None:
@@ -45,6 +51,29 @@ def main() -> None:
     elif command == "export":
         print(export_evolution_log(log_path))
 
+    elif command == "preflight":
+        report = preflight_evolution_log(log_path)
+        if report.current_generation is None:
+            print("Current generation: none")
+        else:
+            print(f"Current generation: {report.current_generation}")
+
+        if report.is_valid:
+            print("Validation: ok")
+            print(f"Next generation: {report.next_generation}")
+            print(f"Branch prefix: {report.branch_prefix}")
+            return
+
+        print("Validation: failed", file=sys.stderr)
+        for issue in report.issues:
+            prefix = (
+                f"Generation {issue.generation}: "
+                if issue.generation is not None
+                else ""
+            )
+            print(f"- {prefix}{issue.message}", file=sys.stderr)
+        sys.exit(1)
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -62,7 +91,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight]")
         sys.exit(1)
 
 
