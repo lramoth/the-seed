@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from .evolution import current_generation, parse_evolution_log, validate_evolution_log
+from .evolution import current_generation, export_evolution_log, parse_evolution_log, validate_evolution_log
 
 
 def main() -> None:
@@ -42,6 +42,9 @@ def main() -> None:
             sys.exit(1)
         _print_generation(matches[0])
 
+    elif command == "export":
+        print(export_evolution_log(log_path))
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -59,7 +62,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export]")
         sys.exit(1)
 
 

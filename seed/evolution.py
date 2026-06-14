@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
+import json
 import re
 
 
@@ -103,6 +104,12 @@ def validate_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> list[Valida
         issues.append(ValidationIssue("Generation history should start at Generation 0."))
 
     return issues
+
+
+def export_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> str:
+    """Return all generations serialized as a JSON string."""
+    generations = parse_evolution_log(path)
+    return json.dumps([asdict(g) for g in generations], indent=2)
 
 
 def _parse_generation(number: int, body: str) -> Generation:

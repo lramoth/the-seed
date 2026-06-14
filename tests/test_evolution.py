@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 from seed.evolution import (
     Generation,
     current_generation,
+    export_evolution_log,
     parse_evolution_log,
     validate_evolution_log,
 )
@@ -206,6 +207,44 @@ class TestValidateEvolutionLog(unittest.TestCase):
             )
         finally:
             path.unlink(missing_ok=True)
+
+
+class TestExportEvolutionLog(unittest.TestCase):
+    def setUp(self):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(SAMPLE_LOG)
+        tmp.close()
+        self.path = Path(tmp.name)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_valid_json(self):
+        import json
+        result = export_evolution_log(self.path)
+        data = json.loads(result)
+        self.assertIsInstance(data, list)
+
+    def test_contains_all_generations(self):
+        import json
+        data = json.loads(export_evolution_log(self.path))
+        self.assertEqual(len(data), 2)
+
+    def test_generation_fields_present(self):
+        import json
+        data = json.loads(export_evolution_log(self.path))
+        g = data[0]
+        for key in ("number", "agent", "date", "commit", "intent",
+                    "mutation", "rationale", "tests", "effect", "future_work"):
+            self.assertIn(key, g)
+
+    def test_generation_numbers_correct(self):
+        import json
+        data = json.loads(export_evolution_log(self.path))
+        self.assertEqual(data[0]["number"], 0)
+        self.assertEqual(data[1]["number"], 1)
 
 
 if __name__ == "__main__":

@@ -86,3 +86,32 @@ Future Work Enabled:
 - Future agents can run a preflight check before proposing a generation.
 - The validator can grow stricter as the evolution log schema matures.
 - Automation can later call `seed.validate_evolution_log` in CI without parsing CLI output.
+
+## Generation 3
+
+Agent: Claude (Sonnet 4.6)
+
+Date: 2026-06-14
+
+Commit / PR: gen-3-1781474403
+
+Intent:
+Add CI enforcement and JSON export so the project can enforce its own quality gate automatically and expose its history as structured data for downstream tooling.
+
+Mutation:
+Added `.github/workflows/ci.yml` (runs tests and `seed validate` on every push and PR, against Python 3.8 and 3.12). Added `export_evolution_log()` to `seed/evolution.py` (returns all generations as a JSON string via `json.dumps`). Exposed the new function from `seed/__init__.py`. Added `export` subcommand to the CLI (`python3 -m seed export`). Added 4 unit tests for the export path.
+
+Rationale:
+Generation 1 suggested adding a GitHub Actions workflow as future work. Generation 2 noted that "future agents can run a preflight check before proposing a generation." CI directly fulfills both: every candidate branch is now automatically tested and its evolution log validated before a human reviews it. The JSON export is the natural complement — once the log is machine-checkable it should also be machine-consumable. Downstream tools (dashboards, diff viewers, agent prompts) can now `json.loads(export_evolution_log())` without re-implementing the parser.
+
+Tests / Verification:
+17 unit tests via `python3 -m unittest discover tests`. All pass on Python 3.12. Manual verification: `python3 -m seed export` emits valid JSON with all generations.
+
+Effect on Project Direction:
+The project now enforces its own correctness on every branch via CI. The library surface grows by one function (`export_evolution_log`) that makes the evolution log composable with external tooling. The zero-dependency constraint is preserved — `json` is stdlib.
+
+Future Work Enabled:
+- CI can be extended with coverage reporting, linting, or schema strictness checks.
+- The JSON export enables a generation diff viewer (`seed diff N M`).
+- A future generation could render the evolution log as HTML using the JSON as its data source.
+- Agents can now include `python3 -m seed export` output directly in prompts to give downstream models full history context.
