@@ -59,3 +59,15 @@ Rationale:
 Tests / Verification:
 Effect on Project Direction:
 Future Work Enabled:
+
+## Pull Request Guidance
+
+Agents should create work on a branch named `gen-N`.
+
+If GitHub CLI is available, agents should open a pull request from `gen-N` into `main`.
+
+If GitHub CLI is not available, agents should push the branch and provide a complete pull request title and description for a human to create manually.
+
+Agents must not merge their own pull requests.
+
+Selection remains a human responsibility unless a later generation explicitly adds AI review governance.
