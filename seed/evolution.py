@@ -96,6 +96,15 @@ class GenerationLineage:
     descendants: list[int]
 
 
+@dataclass
+class GenerationInfluence:
+    generation: int
+    direct_ancestors: int
+    direct_descendants: int
+    transitive_ancestors: int
+    transitive_descendants: int
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -550,6 +559,32 @@ def generation_lineage(
         ancestors=sorted(_reachable(number, references)),
         descendants=sorted(_reachable(number, referenced_by)),
     )
+
+
+def influence_scores(
+    path: Path | str = "EVOLUTION_LOG.md",
+) -> list[GenerationInfluence]:
+    """Return direct and transitive influence counts for each generation.
+
+    ``reference_graph`` answers "who cites whom?" and ``generation_lineage``
+    answers "what is reachable from one generation?" This summarizes the same
+    graph for ranking and scanning: direct counts are one-hop citations, while
+    transitive counts include every reachable ancestor or descendant.
+    """
+    graph = reference_graph(path)
+    references = {r.generation: r.references for r in graph}
+    referenced_by = {r.generation: r.referenced_by for r in graph}
+
+    return [
+        GenerationInfluence(
+            generation=ref.generation,
+            direct_ancestors=len(ref.references),
+            direct_descendants=len(ref.referenced_by),
+            transitive_ancestors=len(_reachable(ref.generation, references)),
+            transitive_descendants=len(_reachable(ref.generation, referenced_by)),
+        )
+        for ref in graph
+    ]
 
 
 def _reachable(start: int, edges: dict[int, list[int]]) -> set[int]:

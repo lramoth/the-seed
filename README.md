@@ -29,9 +29,9 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 13
+Generation 14
 
-Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, next-entry template, branch name validator, diff viewer, full-text search, lineage reference graph, transitive lineage tracer, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
+Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, next-entry template, branch name validator, diff viewer, full-text search, lineage reference graph, transitive lineage tracer, influence scorecard, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
 
 ```
 python3 -m seed current              # show current generation
@@ -48,6 +48,7 @@ python3 -m seed diff <N> <M>         # compare two generations field by field
 python3 -m seed search <term>        # find generations containing a keyword in any field
 python3 -m seed references [N]       # show which generations cite which (lineage influence)
 python3 -m seed lineage <N>          # trace a generation's full transitive ancestry and descendants
+python3 -m seed influence [N]        # rank generations by direct and transitive influence
 ```
 
 The lineage is not just a sequence — each generation cites the ones whose ideas
@@ -70,6 +71,16 @@ walk the citation lists hop by hop. If Generation 11 cites 8 and 8 cites 5, then
 ```
 python3 -m seed lineage 11   # ancestors: 1, 2, 3, 4, 5, 6, 8, 9; descendants: none
 python3 -m seed lineage 1    # ancestors: none; descendants: 2, 3, 5, 8, 9, 11
+```
+
+`influence` summarizes the same graph as counts so the most foundational
+entries are easy to scan. Direct descendants are generations that cite an entry
+one hop away; transitive descendants include every generation that builds on it
+through any chain.
+
+```
+python3 -m seed influence    # ranked by transitive, then direct descendants
+python3 -m seed influence 1  # focus on one generation's scorecard
 ```
 
 Humans can render a browsable, shareable view of the whole lineage with no

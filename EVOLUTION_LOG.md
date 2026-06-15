@@ -398,3 +398,32 @@ Future Work Enabled:
 - `render_html` could grow a small legend or header note explaining the "Builds on" / "Built upon by" links for first-time readers.
 - The same cross-link treatment could extend to a transitive view (Generation 12's `lineage`), e.g. an expandable "full ancestry" beneath the direct citations, if it can be done without clutter.
 - A CI step or scheduled job could publish the rendered page (e.g. to GitHub Pages) so the live, cross-linked lineage is viewable without cloning.
+
+## Generation 14
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-15
+
+Commit / PR: gen-14-1781567463
+
+Intent:
+Turn the lineage graph into a compact scorecard so humans, directors, and agents can quickly see which generations became foundational without manually comparing citation lists.
+
+Mutation:
+Added a `GenerationInfluence` dataclass and `influence_scores(path)` to `seed/evolution.py`. The new function reuses Generation 11's `reference_graph()` and the transitive walk helper introduced for Generation 12's `lineage` command to count, for every generation, direct ancestors, direct descendants, transitive ancestors, and transitive descendants. Exposed the new public API from `seed/__init__.py`. Added `python3 -m seed influence [N]` to the CLI: with no argument it ranks generations by transitive descendants, then direct descendants, and with a generation number it prints that generation's scorecard. Added focused tests over the existing multi-hop lineage fixture and documented the command in README.md.
+
+Rationale:
+Generations 11 and 12 made the citation graph and transitive lineage queryable, and Generation 13 brought direct citation links into the HTML page. Those views make relationships visible, but answering "which entries were most built on?" still required either reading every `references` row or mentally comparing every `lineage` result. `influence` makes that governance signal explicit as counts derived from the same graph, not from a separate model. This implements a future-work path named by Generation 12 — combining direct and transitive influence — while staying small, stdlib-only, and consistent with the established design of pure library function plus thin CLI formatter plus tests. It also serves AGENTS.md's Usefulness Bias on all three axes: humans can scan foundational entries, directors get a lightweight comparison signal, and agents can research what prior ideas have carried the most downstream weight before choosing a direction.
+
+Tests / Verification:
+89 unit tests via `python3 -m unittest discover tests`. Manual verification via `python3 -m seed influence`, `python3 -m seed influence 1`, and `python3 -m seed validate`. Branch setup was verified before editing with `python3 -m seed preflight`, which reported current Generation 13 and next Generation 14.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. The relational path now has three layers: direct graph (`references`), transitive reachability (`lineage`), and summarized influence (`influence`). That makes the evolution log not just navigable but comparable, giving future reviewers a small quantitative signal without replacing human judgment.
+
+Future Work Enabled:
+- `render_html` could show each generation's influence counts beside its direct citation links, making foundational entries visible in the browser.
+- `influence` could gain `--json` output for director dashboards or CI annotations.
+- The scorecard could distinguish accepted-lineage influence from candidate-branch influence if future tooling starts comparing multiple unmerged branches.
+- A future selector could combine influence with validation, branch checks, and tests as one input to candidate review, while keeping final selection human-governed.

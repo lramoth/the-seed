@@ -8,6 +8,7 @@ from .evolution import (
     diff_generations,
     export_evolution_log,
     generation_lineage,
+    influence_scores,
     next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
@@ -173,6 +174,22 @@ def main() -> None:
             sys.exit(1)
         _print_lineage(result)
 
+    elif command == "influence":
+        scores = influence_scores(log_path)
+        if len(args) > 1:
+            try:
+                n = int(args[1])
+            except ValueError:
+                print(f"Invalid generation number: {args[1]}", file=sys.stderr)
+                sys.exit(1)
+            scores = [score for score in scores if score.generation == n]
+            if not scores:
+                print(f"Generation {n} not found.", file=sys.stderr)
+                sys.exit(1)
+            _print_influence_scores(scores, ranked=False)
+        else:
+            _print_influence_scores(_rank_influence_scores(scores), ranked=True)
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -190,7 +207,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N> | influence [N]]")
         sys.exit(1)
 
 
@@ -226,6 +243,38 @@ def _print_lineage(lineage: "GenerationLineage") -> None:  # noqa: F821
     print(f"Generation {lineage.generation}")
     print(f"  Builds on (transitively):     {ancestors}")
     print(f"  Built upon by (transitively): {descendants}")
+
+
+def _rank_influence_scores(
+    scores: list["GenerationInfluence"],
+) -> list["GenerationInfluence"]:  # noqa: F821
+    return sorted(
+        scores,
+        key=lambda s: (
+            s.transitive_descendants,
+            s.direct_descendants,
+            -s.generation,
+        ),
+        reverse=True,
+    )
+
+
+def _print_influence_scores(
+    scores: list["GenerationInfluence"], ranked: bool
+) -> None:  # noqa: F821
+    if not scores:
+        print("No generations found.")
+        return
+
+    for index, score in enumerate(scores, 1):
+        prefix = f"{index:>2}. " if ranked else ""
+        print(
+            f"{prefix}Generation {score.generation:>3}  "
+            f"descendants: {score.direct_descendants} direct, "
+            f"{score.transitive_descendants} transitive   "
+            f"ancestors: {score.direct_ancestors} direct, "
+            f"{score.transitive_ancestors} transitive"
+        )
 
 
 def _print_generation(gen: "Generation") -> None:  # noqa: F821

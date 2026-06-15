@@ -10,6 +10,7 @@ from seed.evolution import (
     FieldDiff,
     Generation,
     GenerationDiff,
+    GenerationInfluence,
     GenerationLineage,
     GenerationReferences,
     SearchMatch,
@@ -19,6 +20,7 @@ from seed.evolution import (
     diff_generations,
     export_evolution_log,
     generation_lineage,
+    influence_scores,
     next_generation_number,
     next_generation_template,
     parse_evolution_log,
@@ -1029,6 +1031,58 @@ class TestGenerationLineage(unittest.TestCase):
     def test_unknown_generation_raises(self):
         with self.assertRaises(ValueError):
             generation_lineage(99, self.path)
+
+
+class TestInfluenceScores(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        self.path = self._write_log(LINEAGE_LOG)
+        self.scores = influence_scores(self.path)
+        self.by_number = {score.generation: score for score in self.scores}
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_one_score_per_generation(self):
+        self.assertEqual(len(self.scores), 5)
+        self.assertTrue(
+            all(isinstance(score, GenerationInfluence) for score in self.scores)
+        )
+
+    def test_root_has_full_transitive_descendant_count(self):
+        score = self.by_number[0]
+        self.assertEqual(score.direct_ancestors, 0)
+        self.assertEqual(score.transitive_ancestors, 0)
+        self.assertEqual(score.direct_descendants, 1)
+        self.assertEqual(score.transitive_descendants, 4)
+
+    def test_branch_point_counts_direct_and_transitive_descendants(self):
+        score = self.by_number[1]
+        self.assertEqual(score.direct_ancestors, 1)
+        self.assertEqual(score.transitive_ancestors, 1)
+        self.assertEqual(score.direct_descendants, 2)
+        self.assertEqual(score.transitive_descendants, 3)
+
+    def test_leaf_has_ancestry_but_no_descendants(self):
+        score = self.by_number[4]
+        self.assertEqual(score.direct_ancestors, 1)
+        self.assertEqual(score.transitive_ancestors, 2)
+        self.assertEqual(score.direct_descendants, 0)
+        self.assertEqual(score.transitive_descendants, 0)
+
+    def test_empty_log_yields_empty_scores(self):
+        empty_path = self._write_log("# Evolution Log\n")
+        try:
+            self.assertEqual(influence_scores(empty_path), [])
+        finally:
+            empty_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
