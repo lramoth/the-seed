@@ -38,6 +38,29 @@ class PreflightReport:
         return not self.issues
 
 
+@dataclass
+class FieldDiff:
+    field: str
+    label: str
+    old: str
+    new: str
+
+    @property
+    def changed(self) -> bool:
+        return self.old != self.new
+
+
+@dataclass
+class GenerationDiff:
+    from_number: int
+    to_number: int
+    fields: list[FieldDiff]
+
+    @property
+    def changed_fields(self) -> list[FieldDiff]:
+        return [f for f in self.fields if f.changed]
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -143,6 +166,35 @@ def export_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> str:
     """Return all generations serialized as a JSON string."""
     generations = parse_evolution_log(path)
     return json.dumps([asdict(g) for g in generations], indent=2)
+
+
+def diff_generations(
+    from_number: int, to_number: int, path: Path | str = "EVOLUTION_LOG.md"
+) -> GenerationDiff:
+    """Compare two generations field by field.
+
+    Raises ValueError if either generation number is not found in the log.
+    """
+    generations = {g.number: g for g in parse_evolution_log(path)}
+
+    for n in (from_number, to_number):
+        if n not in generations:
+            raise ValueError(f"Generation {n} not found in evolution log.")
+
+    a = generations[from_number]
+    b = generations[to_number]
+
+    fields: list[FieldDiff] = []
+    for label, attr in _FIELD_MAP.items():
+        fields.append(
+            FieldDiff(
+                field=attr,
+                label=label.title().replace("Pr", "PR"),
+                old=getattr(a, attr),
+                new=getattr(b, attr),
+            )
+        )
+    return GenerationDiff(from_number=from_number, to_number=to_number, fields=fields)
 
 
 def _parse_generation(number: int, body: str) -> Generation:
