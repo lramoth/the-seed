@@ -6,11 +6,13 @@ from tempfile import NamedTemporaryFile
 import re
 
 from seed.evolution import (
+    BranchCheck,
     FieldDiff,
     Generation,
     GenerationDiff,
     SearchMatch,
     branch_name,
+    check_branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
@@ -473,6 +475,69 @@ class TestSearchEvolutionLog(unittest.TestCase):
         # "evolution" appears in both generation 0 and generation 1
         result = search_evolution_log("evolution", self.path)
         self.assertGreaterEqual(len(result), 2)
+
+
+class TestCheckBranchName(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        # SAMPLE_LOG ends at Generation 1, so the next generation is 2.
+        self.path = self._write_log(SAMPLE_LOG)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_branch_check(self):
+        result = check_branch_name("gen-2-1781500168", self.path)
+        self.assertIsInstance(result, BranchCheck)
+
+    def test_valid_branch_for_next_generation(self):
+        result = check_branch_name("gen-2-1781500168", self.path)
+        self.assertTrue(result.is_valid)
+        self.assertEqual(result.issues, [])
+
+    def test_parses_generation_and_timestamp(self):
+        result = check_branch_name("gen-2-1781500168", self.path)
+        self.assertEqual(result.generation, 2)
+        self.assertEqual(result.timestamp, 1781500168)
+        self.assertEqual(result.expected_generation, 2)
+
+    def test_wrong_generation_is_invalid(self):
+        result = check_branch_name("gen-5-1781500168", self.path)
+        self.assertFalse(result.is_valid)
+        self.assertTrue(
+            any("next available generation is 2" in issue for issue in result.issues)
+        )
+
+    def test_malformed_branch_is_invalid(self):
+        result = check_branch_name("feature/new-thing", self.path)
+        self.assertFalse(result.is_valid)
+        self.assertIsNone(result.generation)
+        self.assertIsNone(result.timestamp)
+        self.assertTrue(any("pattern" in issue for issue in result.issues))
+
+    def test_strips_surrounding_whitespace(self):
+        result = check_branch_name("  gen-2-1781500168\n", self.path)
+        self.assertTrue(result.is_valid)
+        self.assertEqual(result.branch, "gen-2-1781500168")
+
+    def test_invalid_log_reports_issue(self):
+        bad_log = SAMPLE_LOG.replace("## Generation 1", "## Generation 3")
+        path = self._write_log(bad_log)
+        try:
+            result = check_branch_name("gen-2-1781500168", path)
+            self.assertFalse(result.is_valid)
+            self.assertTrue(
+                any("Evolution log is invalid" in issue for issue in result.issues)
+            )
+        finally:
+            path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

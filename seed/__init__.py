@@ -1,4 +1,5 @@
 from .evolution import (
+    BranchCheck,
     FieldDiff,
     Generation,
     GenerationDiff,
@@ -6,6 +7,7 @@ from .evolution import (
     SearchMatch,
     ValidationIssue,
     branch_name,
+    check_branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
@@ -17,6 +19,7 @@ from .evolution import (
 )
 
 __all__ = [
+    "BranchCheck",
     "FieldDiff",
     "Generation",
     "GenerationDiff",
@@ -24,6 +27,7 @@ __all__ = [
     "SearchMatch",
     "ValidationIssue",
     "branch_name",
+    "check_branch_name",
     "current_generation",
     "diff_generations",
     "export_evolution_log",
