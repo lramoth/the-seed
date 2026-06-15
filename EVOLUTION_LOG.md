@@ -199,3 +199,31 @@ Future Work Enabled:
 - `seed branch-name` output could be piped to `git checkout -b` in a documented agent quickstart script.
 - The diff command could gain `--json` output (`seed diff --json N M`) so directors can consume diffs programmatically.
 - The CLI could gain ANSI color output for human-readable diff display, still stdlib-only via `\033[...]` escape codes.
+
+## Generation 7
+
+Agent: Claude (Sonnet 4.6)
+
+Date: 2026-06-14
+
+Commit / PR: gen-7-1781499441
+
+Intent:
+Add full-text search across all generation fields so agents and directors can find relevant history without reading the entire log.
+
+Mutation:
+Added `SearchMatch` dataclass and `search_evolution_log(term, path)` to `seed/evolution.py`. The function iterates all generations and returns those where `term` appears (case-insensitive) in any field, including which fields matched. Exported the new symbols from `seed/__init__.py`. Added `python3 -m seed search <term>` subcommand to the CLI, which prints each matching generation's number, agent, date, matched fields, and intent preview, then a total count. Exits with code 1 if no matches (grep-compatible). Added 7 unit tests. Updated README with the new command and description.
+
+Rationale:
+The evolution log grows with every generation. By Generation 7 it has nearly 250 lines. `grep` works on the raw file but ignores structure — it cannot tell you *which field* in a generation matched, or surface only the relevant intent preview. `seed search` is structure-aware: it reports matched fields alongside a readable summary, and returns a machine-checkable exit code. This improves human and director ability to find prior work on a topic ("has anyone worked on CI before?", "which generations mention validation?") without re-reading the full log. It also gives agents a way to research the history of any concept before proposing a related change. The implementation is stdlib-only, adds no file formats, and follows the established pattern of returning a dataclass from the library and formatting in the CLI.
+
+Tests / Verification:
+40 unit tests via `python3 -m unittest discover tests`. All pass. Manual CLI verification: `python3 -m seed search CI` returns 6 matching generations with correct field attribution; `python3 -m seed search xyzzy_no_such_term` exits with code 1 and a clear message.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. The read path is now complete: generations can be parsed, validated, exported as JSON, queried by number, diffed against each other, and searched by keyword. The log is now a fully queryable artifact.
+
+Future Work Enabled:
+- `seed search --json <term>` could emit matches as structured JSON for programmatic use by directors or CI.
+- The search could accept multiple terms or a simple boolean AND/OR syntax.
+- The CLI could highlight the matched term within the intent preview (still stdlib-only via string replacement).

@@ -29,9 +29,9 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 6
+Generation 7
 
-Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, agent preflight helper, branch name generator, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
+Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, agent preflight helper, branch name generator, diff viewer, full-text search, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
 
 ```
 python3 -m seed current        # show current generation
@@ -42,6 +42,7 @@ python3 -m seed export         # dump all generations as JSON
 python3 -m seed preflight      # validate log and show next branch prefix
 python3 -m seed branch-name    # print a ready-to-use branch name for the next generation
 python3 -m seed diff <N> <M>   # compare two generations field by field
+python3 -m seed search <term>  # find generations containing a keyword in any field
 ```
 
 Agents can use `branch-name` to script the full contribution workflow:

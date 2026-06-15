@@ -3,6 +3,7 @@ from .evolution import (
     Generation,
     GenerationDiff,
     PreflightReport,
+    SearchMatch,
     ValidationIssue,
     branch_name,
     current_generation,
@@ -11,6 +12,7 @@ from .evolution import (
     next_generation_number,
     parse_evolution_log,
     preflight_evolution_log,
+    search_evolution_log,
     validate_evolution_log,
 )
 
@@ -19,6 +21,7 @@ __all__ = [
     "Generation",
     "GenerationDiff",
     "PreflightReport",
+    "SearchMatch",
     "ValidationIssue",
     "branch_name",
     "current_generation",
@@ -27,5 +30,6 @@ __all__ = [
     "next_generation_number",
     "parse_evolution_log",
     "preflight_evolution_log",
+    "search_evolution_log",
     "validate_evolution_log",
 ]

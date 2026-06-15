@@ -40,6 +40,12 @@ class PreflightReport:
 
 
 @dataclass
+class SearchMatch:
+    generation: "Generation"
+    matched_fields: list[str]
+
+
+@dataclass
 class FieldDiff:
     field: str
     label: str
@@ -213,6 +219,23 @@ def diff_generations(
             )
         )
     return GenerationDiff(from_number=from_number, to_number=to_number, fields=fields)
+
+
+def search_evolution_log(
+    term: str, path: Path | str = "EVOLUTION_LOG.md"
+) -> list[SearchMatch]:
+    """Return all generations where term appears (case-insensitive) in any field."""
+    lower = term.lower()
+    results: list[SearchMatch] = []
+    for gen in parse_evolution_log(path):
+        matched = [
+            attr
+            for attr in _FIELD_MAP.values()
+            if lower in getattr(gen, attr).lower()
+        ]
+        if matched:
+            results.append(SearchMatch(generation=gen, matched_fields=matched))
+    return results
 
 
 def _parse_generation(number: int, body: str) -> Generation:

@@ -9,6 +9,7 @@ from seed.evolution import (
     FieldDiff,
     Generation,
     GenerationDiff,
+    SearchMatch,
     branch_name,
     current_generation,
     diff_generations,
@@ -16,6 +17,7 @@ from seed.evolution import (
     next_generation_number,
     parse_evolution_log,
     preflight_evolution_log,
+    search_evolution_log,
     validate_evolution_log,
 )
 
@@ -423,6 +425,54 @@ class TestDiffGenerations(unittest.TestCase):
     def test_identical_generations_have_no_changed_fields(self):
         result = diff_generations(0, 0, self.path)
         self.assertEqual(result.changed_fields, [])
+
+
+class TestSearchEvolutionLog(unittest.TestCase):
+    def setUp(self):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(SAMPLE_LOG)
+        tmp.close()
+        self.path = Path(tmp.name)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_list(self):
+        result = search_evolution_log("python", self.path)
+        self.assertIsInstance(result, list)
+
+    def test_returns_search_match_instances(self):
+        result = search_evolution_log("python", self.path)
+        self.assertTrue(all(isinstance(m, SearchMatch) for m in result))
+
+    def test_finds_matching_generation(self):
+        result = search_evolution_log("evolution log parser", self.path)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].generation.number, 1)
+
+    def test_no_match_returns_empty(self):
+        result = search_evolution_log("xyzzy_no_such_term", self.path)
+        self.assertEqual(result, [])
+
+    def test_case_insensitive(self):
+        # "Human Seed" is stored in agent field
+        result_lower = search_evolution_log("human seed", self.path)
+        result_upper = search_evolution_log("HUMAN SEED", self.path)
+        self.assertEqual(len(result_lower), len(result_upper))
+        self.assertGreater(len(result_lower), 0)
+
+    def test_matched_fields_lists_correct_attrs(self):
+        result = search_evolution_log("evolution log parser", self.path)
+        self.assertTrue(len(result) > 0)
+        # "evolution log parser" appears in generation 1's intent field
+        self.assertIn("intent", result[0].matched_fields)
+
+    def test_multi_generation_match(self):
+        # "evolution" appears in both generation 0 and generation 1
+        result = search_evolution_log("evolution", self.path)
+        self.assertGreaterEqual(len(result), 2)
 
 
 if __name__ == "__main__":
