@@ -3,10 +3,13 @@ import unittest
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+import re
+
 from seed.evolution import (
     FieldDiff,
     Generation,
     GenerationDiff,
+    branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
@@ -313,6 +316,63 @@ class TestExportEvolutionLog(unittest.TestCase):
         data = json.loads(export_evolution_log(self.path))
         self.assertEqual(data[0]["number"], 0)
         self.assertEqual(data[1]["number"], 1)
+
+
+class TestBranchName(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def test_returns_string(self):
+        path = self._write_log(SAMPLE_LOG)
+        try:
+            result = branch_name(path)
+            self.assertIsInstance(result, str)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_matches_branch_name_pattern(self):
+        path = self._write_log(SAMPLE_LOG)
+        try:
+            result = branch_name(path)
+            self.assertRegex(result, r"^gen-\d+-\d+$")
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_uses_next_generation_number(self):
+        path = self._write_log(SAMPLE_LOG)
+        try:
+            result = branch_name(path)
+            # SAMPLE_LOG ends at Generation 1, so next is 2
+            self.assertTrue(result.startswith("gen-2-"), result)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_timestamp_is_recent(self):
+        import time as _time
+        path = self._write_log(SAMPLE_LOG)
+        try:
+            before = int(_time.time())
+            result = branch_name(path)
+            after = int(_time.time())
+            ts = int(result.split("-")[2])
+            self.assertGreaterEqual(ts, before)
+            self.assertLessEqual(ts, after)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_raises_on_invalid_log(self):
+        bad_log = SAMPLE_LOG.replace("## Generation 1", "## Generation 3")
+        path = self._write_log(bad_log)
+        try:
+            with self.assertRaises(RuntimeError):
+                branch_name(path)
+        finally:
+            path.unlink(missing_ok=True)
 
 
 class TestDiffGenerations(unittest.TestCase):

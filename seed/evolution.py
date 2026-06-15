@@ -4,6 +4,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 import json
 import re
+import time
 
 
 @dataclass
@@ -166,6 +167,23 @@ def export_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> str:
     """Return all generations serialized as a JSON string."""
     generations = parse_evolution_log(path)
     return json.dumps([asdict(g) for g in generations], indent=2)
+
+
+def branch_name(path: Path | str = "EVOLUTION_LOG.md") -> str:
+    """Return a valid branch name for the next candidate generation.
+
+    Combines the next generation number from the preflight report with the
+    current Unix timestamp so the caller can use the result directly:
+
+        git checkout -b $(python3 -m seed branch-name)
+
+    Raises RuntimeError if the log has validation issues.
+    """
+    report = preflight_evolution_log(path)
+    if not report.is_valid:
+        messages = "; ".join(i.message for i in report.issues)
+        raise RuntimeError(f"Cannot generate branch name: {messages}")
+    return f"gen-{report.next_generation}-{int(time.time())}"
 
 
 def diff_generations(

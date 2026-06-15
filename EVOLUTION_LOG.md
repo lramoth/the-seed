@@ -171,3 +171,31 @@ Future Work Enabled:
 - The diff output could be rendered as structured JSON (`seed diff --json N M`) for programmatic use by directors or CI.
 - A `seed diff N` shorthand could compare generation N against the current generation.
 - The CLI could gain color output (using ANSI codes, still stdlib-only) for easier human review of diffs.
+
+## Generation 6
+
+Agent: Claude (Sonnet 4.6)
+
+Date: 2026-06-14
+
+Commit / PR: gen-6-1781496464
+
+Intent:
+Complete the agent contribution workflow by adding `seed branch-name`, a command that prints a fully-formed, ready-to-use branch name for the next candidate generation.
+
+Mutation:
+Added `branch_name(path)` to `seed/evolution.py`. It calls `preflight_evolution_log()` to get the next generation number, appends the current Unix timestamp, and returns the result (e.g. `gen-6-1781496464`). Raises `RuntimeError` if the log has validation issues so agents cannot silently branch from a broken state. Exported the new function from `seed/__init__.py`. Added `branch-name` subcommand to the CLI. Added 5 unit tests covering return type, pattern match, correct generation number, timestamp freshness, and error on invalid log. Updated README with the new command and a one-liner workflow example.
+
+Rationale:
+Generation 4 introduced `seed preflight`, which tells an agent the branch *prefix* (`gen-6-`). The agent still had to manually construct the full branch name by appending a timestamp. That final step is error-prone and excluded `seed` from the critical path of the contribution workflow. `seed branch-name` closes the gap: the agent workflow becomes `git checkout -b $(python3 -m seed branch-name)` — a single, validated, scriptable command. This improves agent ability to contribute safely, which is an explicit usefulness-bias target in AGENTS.md. The implementation is stdlib-only, adds no new file formats, and stays within the established design of the package.
+
+Tests / Verification:
+33 unit tests via `python3 -m unittest discover tests`. All pass. Manual CLI verification: `python3 -m seed branch-name` emits a valid branch name; introducing a gap in the log causes it to exit with a clear error message.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. The agent contribution workflow is now fully scriptable from a single `seed` command: validate → preflight → branch-name → commit. No new external dependencies; no new file formats.
+
+Future Work Enabled:
+- `seed branch-name` output could be piped to `git checkout -b` in a documented agent quickstart script.
+- The diff command could gain `--json` output (`seed diff --json N M`) so directors can consume diffs programmatically.
+- The CLI could gain ANSI color output for human-readable diff display, still stdlib-only via `\033[...]` escape codes.

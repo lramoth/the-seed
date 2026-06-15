@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 from .evolution import (
+    branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
@@ -75,6 +76,13 @@ def main() -> None:
             print(f"- {prefix}{issue.message}", file=sys.stderr)
         sys.exit(1)
 
+    elif command == "branch-name":
+        try:
+            print(branch_name(log_path))
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            sys.exit(1)
+
     elif command == "diff" and len(args) == 3:
         try:
             from_n = int(args[1])
@@ -106,7 +114,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight | diff <N> <M>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight | branch-name | diff <N> <M>]")
         sys.exit(1)
 
 
