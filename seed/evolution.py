@@ -221,6 +221,11 @@ article h2 { margin-top: 0; }
 .field { margin: 0.75rem 0; }
 .field .label { font-weight: 600; }
 .field .value { white-space: pre-wrap; margin: 0.15rem 0 0; }
+.lineage { margin-top: 1rem; padding-top: 0.6rem; border-top: 1px dashed;
+           font-size: 0.9rem; }
+.lineage .rel { margin: 0.2rem 0; }
+.lineage .rel-label { font-weight: 600; }
+.lineage a { color: inherit; }
 footer { opacity: 0.6; font-size: 0.9rem; margin-top: 2rem; }
 """
 
@@ -233,8 +238,15 @@ def render_html(path: Path | str = "EVOLUTION_LOG.md") -> str:
     the CLI. Every field value is HTML-escaped, so untrusted log content cannot
     inject markup. Multiline fields keep their line breaks via ``white-space:
     pre-wrap``.
+
+    Each generation's section also shows its place in the citation graph — the
+    generations it builds on and the generations that build on it — as in-page
+    anchor links, so the influence the CLI exposes through ``references`` is
+    navigable directly in the browser. The links come from ``reference_graph``,
+    so the page and ``seed references`` can never disagree.
     """
     generations = parse_evolution_log(path)
+    graph = {r.generation: r for r in reference_graph(path)}
 
     articles: list[str] = []
     for gen in generations:
@@ -253,6 +265,7 @@ def render_html(path: Path | str = "EVOLUTION_LOG.md") -> str:
             f'<article id="generation-{gen.number}">\n'
             f"<h2>Generation {gen.number}</h2>\n"
             + "\n".join(rows)
+            + _render_lineage_block(graph.get(gen.number))
             + "\n</article>"
         )
 
@@ -278,6 +291,34 @@ def render_html(path: Path | str = "EVOLUTION_LOG.md") -> str:
         "</body>\n"
         "</html>\n"
     )
+
+
+def _render_lineage_block(refs: GenerationReferences | None) -> str:
+    """Render one generation's citation links for the HTML page.
+
+    Returns the relationships block for a generation's article — "Builds on"
+    for the generations it cites and "Built upon by" for the generations that
+    cite it — as in-page anchor links to their sections. Returns an empty
+    string when the generation neither cites nor is cited, so an unconnected
+    entry renders exactly as it did before this view existed.
+    """
+    if refs is None or (not refs.references and not refs.referenced_by):
+        return ""
+
+    rows: list[str] = []
+    if refs.references:
+        rows.append(_render_lineage_row("Builds on", refs.references))
+    if refs.referenced_by:
+        rows.append(_render_lineage_row("Built upon by", refs.referenced_by))
+    return '\n<div class="lineage">\n' + "\n".join(rows) + "\n</div>"
+
+
+def _render_lineage_row(label: str, numbers: list[int]) -> str:
+    """Render one labelled row of generation anchor links (numbers are safe)."""
+    links = ", ".join(
+        f'<a href="#generation-{n}">Generation {n}</a>' for n in numbers
+    )
+    return f'<div class="rel"><span class="rel-label">{label}:</span> {links}</div>'
 
 
 def branch_name(path: Path | str = "EVOLUTION_LOG.md") -> str:
