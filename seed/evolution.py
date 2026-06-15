@@ -82,6 +82,13 @@ class BranchCheck:
         return not self.issues
 
 
+@dataclass
+class GenerationReferences:
+    generation: int
+    references: list[int]
+    referenced_by: list[int]
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -99,6 +106,11 @@ _REQUIRED_FIELDS = tuple(_FIELD_MAP.values())
 _GEN_HEADER = re.compile(r"^## Generation (\d+)", re.MULTILINE)
 _FIELD_LINE = re.compile(r"^([A-Za-z/ ]+?):\s*(.*)")
 _BRANCH_NAME = re.compile(r"^gen-(\d+)-(\d+)$")
+# A citation of another generation in an entry's prose, written as the log
+# does: "Generation N", "Generations N", the abbreviated "Gen N", or a "gen-N"
+# token. Deliberately anchored to those forms so version strings ("Python 3.8"),
+# counts ("17 tests"), and dates never read as references.
+_REFERENCE = re.compile(r"\bGen(?:eration)?s?\s+(\d+)\b|\bgen-(\d+)\b")
 
 
 def parse_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> list[Generation]:
@@ -404,6 +416,59 @@ def search_evolution_log(
         if matched:
             results.append(SearchMatch(generation=gen, matched_fields=matched))
     return results
+
+
+def reference_graph(
+    path: Path | str = "EVOLUTION_LOG.md",
+) -> list[GenerationReferences]:
+    """Map how generations cite one another in their prose.
+
+    The Seed's stated purpose is to observe how agents "inherit, modify, and
+    transmit a shared artifact over time." This makes that transmission directly
+    legible: for each generation it reports which other generations the entry
+    cites (its acknowledged ancestry of ideas) and which later generations cite
+    it (its influence on the lineage).
+
+    A citation is any mention of another generation in an entry's field text,
+    written either as ``Generation N`` / ``Generations N`` or as a ``gen-N``
+    token. Only references to generations that actually exist in the log are
+    counted, and an entry never references itself (so a self-naming ``Commit /
+    PR`` field is ignored). Numeric ranges such as "Generations 5-8" count only
+    their first number, since the log writes the intervening generations out by
+    name where it means them.
+    """
+    generations = parse_evolution_log(path)
+    numbers = {g.number for g in generations}
+
+    references: dict[int, set[int]] = {g.number: set() for g in generations}
+    for gen in generations:
+        text = "\n".join(getattr(gen, attr) for attr in _FIELD_MAP.values())
+        cited = _extract_references(text) & numbers
+        cited.discard(gen.number)
+        references[gen.number] = cited
+
+    referenced_by: dict[int, set[int]] = {g.number: set() for g in generations}
+    for source, targets in references.items():
+        for target in targets:
+            referenced_by[target].add(source)
+
+    return [
+        GenerationReferences(
+            generation=g.number,
+            references=sorted(references[g.number]),
+            referenced_by=sorted(referenced_by[g.number]),
+        )
+        for g in generations
+    ]
+
+
+def _extract_references(text: str) -> set[int]:
+    """Return every generation number cited in ``text`` (see ``reference_graph``)."""
+    found: set[int] = set()
+    for match in _REFERENCE.finditer(text):
+        number = match.group(1) or match.group(2)
+        found.add(int(number))
+    return found
 
 
 def _parse_generation(number: int, body: str) -> Generation:

@@ -10,6 +10,7 @@ from seed.evolution import (
     FieldDiff,
     Generation,
     GenerationDiff,
+    GenerationReferences,
     SearchMatch,
     branch_name,
     check_branch_name,
@@ -20,6 +21,7 @@ from seed.evolution import (
     next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
+    reference_graph,
     render_html,
     search_evolution_log,
     validate_evolution_log,
@@ -707,6 +709,114 @@ class TestNextGenerationTemplate(unittest.TestCase):
                 next_generation_template(path)
         finally:
             path.unlink(missing_ok=True)
+
+
+REFERENCE_LOG = textwrap.dedent("""\
+    # Evolution Log
+
+    ## Generation 0
+
+    Agent: Human Seed
+    Date: 2026-01-01
+    Commit / PR: Initial Seed
+    Intent: Seed the repository.
+    Mutation: Add the initial documents.
+    Rationale: No prior art to build on.
+    Tests / Verification: Not applicable.
+    Effect on Project Direction: Begin.
+    Future Work Enabled: Invite the first contribution.
+
+    ## Generation 1
+
+    Agent: Agent A
+    Date: 2026-01-02
+    Commit / PR: gen-1-1000000001
+    Intent: Extend the seed.
+    Mutation: Add a feature.
+    Rationale: Builds directly on Generation 0.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Forward.
+    Future Work Enabled: More to come.
+
+    ## Generation 2
+
+    Agent: Agent B
+    Date: 2026-01-03
+    Commit / PR: gen-2-1000000002
+    Intent: Extend further.
+    Mutation: References gen-0 directly.
+    Rationale: Extends Generation 1, echoes Gen 1, ignores Generation 99, Python 3.8, and 17 tests.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Forward.
+    Future Work Enabled: Even more.
+""")
+
+
+class TestReferenceGraph(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        self.path = self._write_log(REFERENCE_LOG)
+        self.graph = reference_graph(self.path)
+        self.by_number = {r.generation: r for r in self.graph}
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_one_entry_per_generation(self):
+        self.assertEqual(len(self.graph), 3)
+        self.assertTrue(
+            all(isinstance(r, GenerationReferences) for r in self.graph)
+        )
+
+    def test_detects_generation_and_gen_token_citations(self):
+        # Generation 2 cites Generation 1 (long form) and gen-0 (token form).
+        self.assertEqual(self.by_number[2].references, [0, 1])
+
+    def test_referenced_by_is_the_inverse(self):
+        # Generation 0 cites nothing but is cited by 1 ("Generation 0") and 2
+        # ("gen-0"); the inverse map mirrors the forward citations exactly.
+        self.assertEqual(self.by_number[0].references, [])
+        self.assertEqual(self.by_number[0].referenced_by, [1, 2])
+        self.assertEqual(self.by_number[1].referenced_by, [2])
+        self.assertEqual(self.by_number[2].referenced_by, [])
+
+    def test_excludes_self_references(self):
+        # The "gen-N" Commit / PR field never makes a generation cite itself.
+        for ref in self.graph:
+            self.assertNotIn(ref.generation, ref.references)
+
+    def test_ignores_nonexistent_generation(self):
+        # "Generation 99" is not in the log, so it is never counted.
+        for ref in self.graph:
+            self.assertNotIn(99, ref.references)
+
+    def test_ignores_version_and_count_numbers(self):
+        # "Python 3.8" and "17 tests" must not be read as references to 3 or 17.
+        self.assertNotIn(3, self.by_number[2].references)
+        self.assertNotIn(17, self.by_number[2].references)
+
+    def test_abbreviated_gen_form_is_detected(self):
+        # "Gen 1" (abbreviated) counts the same as "Generation 1".
+        self.assertIn(1, self.by_number[2].references)
+
+    def test_lists_are_sorted(self):
+        for ref in self.graph:
+            self.assertEqual(ref.references, sorted(ref.references))
+            self.assertEqual(ref.referenced_by, sorted(ref.referenced_by))
+
+    def test_empty_log_yields_empty_graph(self):
+        empty_path = self._write_log("# Evolution Log\n")
+        try:
+            self.assertEqual(reference_graph(empty_path), [])
+        finally:
+            empty_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

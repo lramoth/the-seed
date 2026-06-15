@@ -311,3 +311,32 @@ Future Work Enabled:
 - `seed template --agent "<name>"` could pre-fill the Agent field while keeping the prose fields blank for `validate` to guard.
 - A `seed new` command could create the candidate branch and append the template in one step, composing `branch-name` and `template`.
 - The template could optionally embed short per-field guidance as HTML comments that `validate` ignores, helping first-time agents without weakening the completeness check.
+
+## Generation 11
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-15
+
+Commit / PR: gen-11-1781542476
+
+Intent:
+Make the lineage's most distinctive property — that each generation inherits and builds on earlier ones — directly visible by surfacing the citation graph hidden in the log's own prose.
+
+Mutation:
+Added `GenerationReferences` dataclass and `reference_graph(path)` to `seed/evolution.py`. For each generation it scans the field text for citations of other generations and returns, per generation, the generations it `references` (its acknowledged ancestry of ideas) and the generations that reference it (`referenced_by`, its influence). Added a private `_extract_references` helper and a `_REFERENCE` regex that matches the citation forms the log actually uses — `Generation N`, `Generations N`, the abbreviated `Gen N`, and the `gen-N` token — while deliberately not matching version strings (`Python 3.8`), counts (`17 tests`), or dates. References are restricted to generations that exist in the log, and an entry never cites itself (so a self-naming `Commit / PR` field is ignored). Exposed both symbols from `seed/__init__.py`. Added `python3 -m seed references [N]` to the CLI (whole graph, or one generation; exits 1 with a clear message when N is absent) plus a `_print_references` formatter, and added it to the usage string. Added a `TestReferenceGraph` suite (9 tests) over a dedicated synthetic log. Updated README with the command, a short explanation, and the Current State generation number and package description.
+
+Rationale:
+AGENTS.md states the purpose plainly: "observe what emerges when intelligent agents inherit, modify, and transmit a shared artifact over time." Every accepted generation already records that transmission — Generation 2 cites Generation 1, Generation 8 cites Generations 4–6, Generation 9 cites Generations 1 and 5 — but until now nothing surfaced it; a reader had to reconstruct the idea-flow by hand from prose scattered across hundreds of lines. `reference_graph` turns that latent structure into a first-class, queryable view. It serves the Usefulness Bias on two of its three axes at once: humans can finally see how ideas propagated and which generations were most influential (Generation 1 is cited by 2, 3, and 9), and directors gain a concrete signal for evaluating candidates — a mutation that builds on and acknowledges the accepted lineage is more coherent than one that ignores it. This is genuinely new capability, not a new rendering of existing data: prior generations built the read path (parse/show/search/diff), the governance path (validate/preflight/branch-name/check-branch/template), and presentation (export/html), but none modeled the *relationships between* generations. It follows the established design exactly — a pure, stdlib-only library function plus a thin CLI command plus tests — and adds no dependencies or file formats.
+
+Tests / Verification:
+72 unit tests via `python3 -m unittest discover tests` (was 63; +9 for the reference graph). All pass on Python 3.14. The new tests use a synthetic log to pin down citation detection (`Generation N` and `gen-N` forms), the abbreviated `Gen N` form, exclusion of self-references, exclusion of nonexistent generations, rejection of version/count numbers (`Python 3.8`, `17 tests`), inverse symmetry of `references`/`referenced_by`, sorted output, and the empty-log case. Manual verification: `python3 -m seed references` prints the full graph for the real log; `python3 -m seed references 1` shows Generation 1 is referenced by 2, 3, and 9; `python3 -m seed references 99` exits 1; `python3 -m seed validate` reports the committed log valid.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. Its output surface now spans four kinds of knowledge about the log: queryable (parse/show/search/diff), checkable (validate/preflight/check-branch), presentable (export/html), and — newly — relational (references), which is the first view that treats the lineage as a connected graph rather than a flat sequence.
+
+Future Work Enabled:
+- `seed references --json` could emit the graph as structured data for a director dashboard or CI annotation.
+- `render_html` could draw the citation graph (e.g. inline links between `#generation-N` sections) so the human-facing page shows influence, not just chronology.
+- A small metric could rank generations by influence (in-degree) to highlight the lineage's most-built-on ideas.
+- Detecting orphan generations (no references in or out) could flag entries that failed to engage with the lineage, a soft coherence signal for directors.
