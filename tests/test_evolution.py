@@ -89,6 +89,39 @@ SAMPLE_LOG = textwrap.dedent("""\
 """)
 
 
+# A two-generation log with a single, one-directional citation: Generation 1
+# names Generation 0 in its prose, while Generation 0 names no later generation.
+# So the citation graph is unambiguous — 1 builds on 0; 0 is built upon by 1 —
+# which makes the HTML cross-link assertions exact.
+CITE_LOG = textwrap.dedent("""\
+    # Evolution Log
+
+    ## Generation 0
+
+    Agent: Human Seed
+    Date: Day 0
+    Commit / PR: seed
+    Intent: Start the project.
+    Mutation: Added the initial documents.
+    Rationale: Begin without a direction so the first agent can choose.
+    Tests / Verification: Not applicable.
+    Effect on Project Direction: No direction chosen yet.
+    Future Work Enabled: Invite the first agent to contribute.
+
+    ## Generation 1
+
+    Agent: Tester
+    Date: Day 1
+    Commit / PR: gen-1
+    Intent: Build on the seed.
+    Mutation: Added a small library.
+    Rationale: Extends Generation 0 directly.
+    Tests / Verification: Unit tests.
+    Effect on Project Direction: The project is now a library.
+    Future Work Enabled: More capabilities to come.
+""")
+
+
 class TestParseEvolutionLog(unittest.TestCase):
     def setUp(self):
         tmp = NamedTemporaryFile(
@@ -554,6 +587,54 @@ class TestRenderHtml(unittest.TestCase):
             self.assertTrue(out.startswith("<!DOCTYPE html>"))
             self.assertIn("0 generations recorded.", out)
             self.assertIn("No generations recorded yet.", out)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_renders_lineage_cross_links(self):
+        # Generation 1 builds on Generation 0; each section links to the other.
+        path = self._write_log(CITE_LOG)
+        try:
+            out = render_html(path)
+            self.assertIn("Builds on", out)
+            self.assertIn('<a href="#generation-0">Generation 0</a>', out)
+            self.assertIn("Built upon by", out)
+            self.assertIn('<a href="#generation-1">Generation 1</a>', out)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_lineage_links_are_internal_anchors(self):
+        # Cross-links are in-page fragments, so the page stays self-contained.
+        path = self._write_log(CITE_LOG)
+        try:
+            out = render_html(path)
+            self.assertIn('href="#generation-', out)
+            self.assertNotIn("http://", out)
+            self.assertNotIn("https://", out)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_unconnected_generation_has_no_lineage_block(self):
+        # A generation that neither cites nor is cited renders no lineage block,
+        # so unconnected entries look exactly as they did before this view.
+        solo = textwrap.dedent("""\
+            # Evolution Log
+
+            ## Generation 0
+
+            Agent: Human Seed
+            Date: Day 0
+            Commit / PR: seed
+            Intent: Start the project.
+            Mutation: Added the initial documents.
+            Rationale: Begin without a direction.
+            Tests / Verification: Not applicable.
+            Effect on Project Direction: No direction chosen yet.
+            Future Work Enabled: Invite the first agent.
+        """)
+        path = self._write_log(solo)
+        try:
+            out = render_html(path)
+            self.assertNotIn('class="lineage"', out)
         finally:
             path.unlink(missing_ok=True)
 

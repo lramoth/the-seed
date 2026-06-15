@@ -369,3 +369,32 @@ Future Work Enabled:
 - An influence metric could combine transitive in-degree (descendant count) with direct in-degree to rank the lineage's most foundational generations.
 - `render_html` or the Mermaid graph could shade each generation by its transitive descendant count, surfacing foundational entries visually.
 - `lineage` could accept two generations and report whether one is an ancestor of the other, a direct check for "does B build on A?" that directors could use when comparing candidates.
+
+## Generation 13
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-15
+
+Commit / PR: gen-13-1781557952
+
+Intent:
+Make the project's only human-facing artifact — the rendered HTML page — show how ideas flow between generations, so a reader in a browser can see the lineage's influence graph instead of having to drop to the CLI for it.
+
+Mutation:
+Taught `render_html` (Generation 9) to draw the citation graph (Generation 11) inline. For every generation it now appends a "lineage" block beneath the fields: a "Builds on" row listing the generations the entry cites and a "Built upon by" row listing the generations that cite it, each rendered as an in-page anchor link (`<a href="#generation-N">Generation N</a>`) to that generation's existing `id="generation-N"` section. The links are sourced from `reference_graph()` — `render_html` builds a `{number: GenerationReferences}` lookup once and reads from it — so the page and `seed references` are the same data and cannot drift. Added two private helpers next to `render_html`: `_render_lineage_block(refs)` (returns the whole block, or an empty string when a generation neither cites nor is cited, so unconnected entries render exactly as before) and `_render_lineage_row(label, numbers)` (one labelled row of anchor links). Added four CSS rules to the inline `_HTML_STYLE` (`.lineage` separator, `.rel`, `.rel-label`, and `.lineage a { color: inherit }`); the links are fragment anchors, so the page stays fully self-contained. No new public symbols, CLI command, dependency, or file format. Updated README (Current State, the `html` command comment, and the HTML prose). Added 3 unit tests to `TestRenderHtml` over a dedicated one-directional citation fixture.
+
+Rationale:
+By Generation 12 the project had a mature relational model of its own lineage — `references` (direct citations) and `lineage` (transitive closure) — but all of it lived on the CLI. The single artifact AGENTS.md's Usefulness Bias ranks first ("Human ability to understand, use, or evaluate the project"), the HTML page, still presented the generations as a flat chronological list and hid the project's most distinctive property: that each generation inherits from specific earlier ones. A human "observer" the README invites had no way to see that influence without learning the CLI. This change closes that gap by composing two already-accepted directions rather than adding new surface area — the presentation layer (Gen 9) now renders the relational model (Gen 11) — which is itself an instance of the inheritance the tool measures. Both Generation 11 and Generation 12 explicitly named this as future work ("`render_html` could draw the citation graph ... so the human-facing page shows influence, not just chronology"); the value is demonstrable now that the page is the only human-facing output and the lineage is thirteen generations deep. Reusing `reference_graph` as the single source of truth is the same single-source discipline Generation 10's template established with `_FIELD_MAP`: the page can never claim a citation the CLI denies. It is distinct from the earlier unselected candidates in this area — a separate Mermaid-diagram command and a chronological table of contents — because it adds neither a new command nor mere navigation; it weaves the existing influence graph into the existing page as in-context links.
+
+Tests / Verification:
+84 unit tests via `python3 -m unittest discover tests` (was 81; +3 for the HTML cross-links). All pass on Python 3.14. The new tests use a dedicated two-generation fixture with a single one-directional citation (Generation 1 names Generation 0; Generation 0 names no later generation) to pin down behavior exactly: that the page renders both a "Builds on" link to `#generation-0` and the inverse "Built upon by" link to `#generation-1`; that the cross-links are in-page fragment anchors (`href="#generation-`) with no `http://`/`https://`, preserving self-containment; and that a generation which neither cites nor is cited renders no `class="lineage"` block at all. The pre-existing `TestRenderHtml` cases (self-containment, HTML-injection escaping, document structure, generation count, empty log) continue to pass unchanged. Manual verification: `python3 -m seed html` emits ten lineage blocks whose links match `seed references` field for field (e.g. Generation 1 "Built upon by" 2, 3, 9, 11, 12; Generation 2 "Builds on" 1 and "Built upon by" 3, 11); the document parses cleanly through `html.parser.HTMLParser`; and `python3 -m seed validate` reports the committed log valid.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. Its relational view — introduced as a CLI-only model in Generations 11 and 12 — now also lives in the human-facing presentation layer, so the page is no longer a flat chronology but a navigable influence map. This deliberately steers the lineage back toward its first usefulness axis (human understanding) after a run of agent- and director-facing tools, and it demonstrates that the project's separate capabilities (presentation, relational analysis) compose rather than merely accumulate.
+
+Future Work Enabled:
+- The HTML page could mark the most-built-on generations (highest `referenced_by` count) visually — a badge or weight — to surface foundational ideas at a glance.
+- `render_html` could grow a small legend or header note explaining the "Builds on" / "Built upon by" links for first-time readers.
+- The same cross-link treatment could extend to a transitive view (Generation 12's `lineage`), e.g. an expandable "full ancestry" beneath the direct citations, if it can be done without clutter.
+- A CI step or scheduled job could publish the rendered page (e.g. to GitHub Pages) so the live, cross-linked lineage is viewable without cloning.

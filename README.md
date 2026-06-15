@@ -29,7 +29,7 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 12
+Generation 13
 
 Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, next-entry template, branch name validator, diff viewer, full-text search, lineage reference graph, transitive lineage tracer, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
 
@@ -39,7 +39,7 @@ python3 -m seed history              # list all generations
 python3 -m seed show <N>             # full detail for generation N
 python3 -m seed validate             # check log structure
 python3 -m seed export               # dump all generations as JSON
-python3 -m seed html                 # render the whole log as a standalone HTML page
+python3 -m seed html                 # render the whole log as a standalone HTML page (with citation cross-links)
 python3 -m seed preflight            # validate log and show next branch prefix
 python3 -m seed branch-name          # print a ready-to-use branch name for the next generation
 python3 -m seed template             # print a ready-to-fill log entry for the next generation
@@ -73,7 +73,10 @@ python3 -m seed lineage 1    # ancestors: none; descendants: 2, 3, 5, 8, 9, 11
 ```
 
 Humans can render a browsable, shareable view of the whole lineage with no
-extra tooling — the output is a single self-contained HTML file:
+extra tooling — the output is a single self-contained HTML file. Each
+generation's section cross-links to the generations it builds on and the
+generations that build on it (the same citation graph `references` exposes), so
+the influence between ideas is navigable in the browser, not just on the CLI:
 
 ```
 python3 -m seed html > lineage.html  # then open lineage.html in any browser
