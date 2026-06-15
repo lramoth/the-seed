@@ -29,9 +29,9 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 10
+Generation 11
 
-Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, next-entry template, branch name validator, diff viewer, full-text search, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
+Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, next-entry template, branch name validator, diff viewer, full-text search, lineage reference graph, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
 
 ```
 python3 -m seed current              # show current generation
@@ -46,6 +46,18 @@ python3 -m seed template             # print a ready-to-fill log entry for the n
 python3 -m seed check-branch <name>  # validate a candidate branch name against the log
 python3 -m seed diff <N> <M>         # compare two generations field by field
 python3 -m seed search <term>        # find generations containing a keyword in any field
+python3 -m seed references [N]       # show which generations cite which (lineage influence)
+```
+
+The lineage is not just a sequence — each generation cites the ones whose ideas
+it builds on. `references` makes that visible: for every generation it lists the
+earlier generations it cites and the later generations that cite it, so a human
+or director can see at a glance how ideas propagated and which generations were
+most influential.
+
+```
+python3 -m seed references     # whole graph: references + referenced-by per generation
+python3 -m seed references 5   # focus on a single generation
 ```
 
 Humans can render a browsable, shareable view of the whole lineage with no

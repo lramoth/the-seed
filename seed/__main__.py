@@ -10,6 +10,7 @@ from .evolution import (
     next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
+    reference_graph,
     render_html,
     search_evolution_log,
     validate_evolution_log,
@@ -141,6 +142,23 @@ def main() -> None:
         total = len(matches)
         print(f"{total} {'match' if total == 1 else 'matches'} found.")
 
+    elif command == "references":
+        graph = reference_graph(log_path)
+        if len(args) > 1:
+            try:
+                n = int(args[1])
+            except ValueError:
+                print(f"Invalid generation number: {args[1]}", file=sys.stderr)
+                sys.exit(1)
+            matches = [r for r in graph if r.generation == n]
+            if not matches:
+                print(f"Generation {n} not found.", file=sys.stderr)
+                sys.exit(1)
+            _print_references(matches[0])
+        else:
+            for ref in graph:
+                _print_references(ref)
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -158,7 +176,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N]]")
         sys.exit(1)
 
 
@@ -177,6 +195,15 @@ def _print_diff(diff: "GenerationDiff") -> None:  # noqa: F821
         else:
             print(f"  {fd.old!r} → {fd.new!r}")
         print()
+
+
+def _print_references(ref: "GenerationReferences") -> None:  # noqa: F821
+    refs = ", ".join(str(n) for n in ref.references) or "none"
+    by = ", ".join(str(n) for n in ref.referenced_by) or "none"
+    print(
+        f"Generation {ref.generation:>3}  "
+        f"references: {refs}   referenced by: {by}"
+    )
 
 
 def _print_generation(gen: "Generation") -> None:  # noqa: F821
