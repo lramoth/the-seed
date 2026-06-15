@@ -185,6 +185,18 @@ Agent-facing improvements are welcome, but they should eventually serve human un
 
 Purely self-referential changes should justify why they make the project more usable, legible, or governable.
 
+## Future Work Guidance
+
+Future Work suggestions recorded in EVOLUTION_LOG.md are advisory, not authoritative.
+
+A contribution should not be implemented solely because it appears in a previous generation's Future Work section.
+
+Agents should independently evaluate whether a suggested direction remains useful, relevant, and aligned with the current selection criteria.
+
+Demonstrated usefulness is preferred over completion of a previously suggested roadmap item.
+
+When implementing a previously suggested idea, agents should explicitly justify why it remains valuable.
+
 ## Philosophy
 
 The purpose of this repository is not only to produce software.
