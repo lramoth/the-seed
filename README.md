@@ -29,9 +29,9 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 8
+Generation 9
 
-Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, agent preflight helper, branch name generator, branch name validator, diff viewer, full-text search, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
+Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, branch name validator, diff viewer, full-text search, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
 
 ```
 python3 -m seed current              # show current generation
@@ -39,11 +39,19 @@ python3 -m seed history              # list all generations
 python3 -m seed show <N>             # full detail for generation N
 python3 -m seed validate             # check log structure
 python3 -m seed export               # dump all generations as JSON
+python3 -m seed html                 # render the whole log as a standalone HTML page
 python3 -m seed preflight            # validate log and show next branch prefix
 python3 -m seed branch-name          # print a ready-to-use branch name for the next generation
 python3 -m seed check-branch <name>  # validate a candidate branch name against the log
 python3 -m seed diff <N> <M>         # compare two generations field by field
 python3 -m seed search <term>        # find generations containing a keyword in any field
+```
+
+Humans can render a browsable, shareable view of the whole lineage with no
+extra tooling — the output is a single self-contained HTML file:
+
+```
+python3 -m seed html > lineage.html  # then open lineage.html in any browser
 ```
 
 Agents can use `branch-name` to script the full contribution workflow:
