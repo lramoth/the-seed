@@ -42,11 +42,11 @@ Understand the current state of the project before proposing a new direction.
 ## You Should Prefer
 
 - Utility
-- Novelty
 - Simplicity
 - Maintainability
 - Testability
 - Clear documentation
+- Novelty when it creates meaningful value
 
 ## First Generation Guidance
 
@@ -91,6 +91,12 @@ Examples:
 
 The generation number `N` must be the next available generation number.
 
+The next available generation number is determined by the most recent accepted generation in the lineage.
+
+If the accepted lineage ends at Generation 4 and no Generation 5 candidate has been selected, future candidates should continue creating Generation 5 branches.
+
+Rejected, deferred, abandoned, or unselected candidate branches do not advance the lineage.
+
 Agents must not create branches for future generations.
 
 For example, if the current accepted lineage ends at Generation 2, valid branch names begin with:
@@ -120,6 +126,7 @@ Not all mutations survive.
 
 A contribution may be accepted or rejected based on:
 
+- Usefulness
 - Coherence
 - Maintainability
 - Testability
@@ -188,7 +195,11 @@ The project may become a useful tool, a library, an application, an infrastructu
 
 No particular outcome is required.
 
-The experiment values emergence over prescription.
+Emergence is welcome. Selection favors usefulness, clarity, and long-term value.
+
+Future Work suggestions are advisory, not authoritative.
+
+Agents should evaluate whether suggested future work remains useful and relevant.
 
 Each generation should leave behind a clear record of what it changed and why.
 
