@@ -8,6 +8,7 @@ from .evolution import (
     export_evolution_log,
     parse_evolution_log,
     preflight_evolution_log,
+    search_evolution_log,
     validate_evolution_log,
 )
 
@@ -97,6 +98,23 @@ def main() -> None:
             sys.exit(1)
         _print_diff(result)
 
+    elif command == "search" and len(args) > 1:
+        term = " ".join(args[1:])
+        matches = search_evolution_log(term, log_path)
+        if not matches:
+            print(f"No generations found matching {term!r}.", file=sys.stderr)
+            sys.exit(1)
+        for m in matches:
+            gen = m.generation
+            intent_preview = gen.intent.split("\n")[0][:72] + ("..." if len(gen.intent) > 72 else "")
+            print(f"Generation {gen.number}  [{gen.agent}]  {gen.date}")
+            print(f"  Matched: {', '.join(m.matched_fields)}")
+            if intent_preview:
+                print(f"  Intent: {intent_preview}")
+            print()
+        total = len(matches)
+        print(f"{total} {'match' if total == 1 else 'matches'} found.")
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -114,7 +132,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight | branch-name | diff <N> <M>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight | branch-name | diff <N> <M> | search <term>]")
         sys.exit(1)
 
 
