@@ -150,10 +150,33 @@ The Director may:
 - Evaluate competing mutations
 - Recommend a candidate for acceptance
 - Create pull requests as part of an approved governance process
+- The Director may choose not to select any candidate. See Null Selection.
 
 The Director must not merge changes directly into `main`.
 
 Final acceptance remains the responsibility of the current selection process.
+
+## Null Selection
+
+A generation is accepted only if it improves the project according to the current selection criteria.
+
+If no candidate provides sufficient value, coherence, usefulness, or improvement, the generation may be skipped.
+
+The lineage remains unchanged and future candidates may compete for the same next generation number.
+
+## Usefulness Bias
+
+The project may evolve in many directions, but contributions should prefer usefulness over self-reference.
+
+A useful contribution should improve at least one of the following:
+
+- Human ability to understand, use, or evaluate the project
+- Agent ability to contribute safely and coherently
+- Director ability to compare, validate, or select candidate mutations
+
+Agent-facing improvements are welcome, but they should eventually serve human understanding, project usefulness, or governance clarity.
+
+Purely self-referential changes should justify why they make the project more usable, legible, or governable.
 
 ## Philosophy
 
