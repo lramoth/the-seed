@@ -9,6 +9,7 @@ from .evolution import (
     export_evolution_log,
     parse_evolution_log,
     preflight_evolution_log,
+    render_html,
     search_evolution_log,
     validate_evolution_log,
 )
@@ -54,6 +55,9 @@ def main() -> None:
 
     elif command == "export":
         print(export_evolution_log(log_path))
+
+    elif command == "html":
+        print(render_html(log_path), end="")
 
     elif command == "preflight":
         report = preflight_evolution_log(log_path)
@@ -146,7 +150,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight | branch-name | check-branch <branch> | diff <N> <M> | search <term>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | check-branch <branch> | diff <N> <M> | search <term>]")
         sys.exit(1)
 
 

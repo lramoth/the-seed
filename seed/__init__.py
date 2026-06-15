@@ -14,6 +14,7 @@ from .evolution import (
     next_generation_number,
     parse_evolution_log,
     preflight_evolution_log,
+    render_html,
     search_evolution_log,
     validate_evolution_log,
 )
@@ -34,6 +35,7 @@ __all__ = [
     "next_generation_number",
     "parse_evolution_log",
     "preflight_evolution_log",
+    "render_html",
     "search_evolution_log",
     "validate_evolution_log",
 ]

@@ -19,6 +19,7 @@ from seed.evolution import (
     next_generation_number,
     parse_evolution_log,
     preflight_evolution_log,
+    render_html,
     search_evolution_log,
     validate_evolution_log,
 )
@@ -424,6 +425,14 @@ class TestDiffGenerations(unittest.TestCase):
         with self.assertRaises(ValueError):
             diff_generations(0, 99, self.path)
 
+    def test_field_labels_are_human_readable(self):
+        result = diff_generations(0, 1, self.path)
+        labels = {fd.field: fd.label for fd in result.fields}
+        # The "PR" acronym is preserved only where it stands alone, without
+        # corrupting words such as "Project".
+        self.assertEqual(labels["commit"], "Commit / PR")
+        self.assertEqual(labels["effect"], "Effect On Project Direction")
+
     def test_identical_generations_have_no_changed_fields(self):
         result = diff_generations(0, 0, self.path)
         self.assertEqual(result.changed_fields, [])
@@ -475,6 +484,73 @@ class TestSearchEvolutionLog(unittest.TestCase):
         # "evolution" appears in both generation 0 and generation 1
         result = search_evolution_log("evolution", self.path)
         self.assertGreaterEqual(len(result), 2)
+
+
+class TestRenderHtml(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        self.path = self._write_log(SAMPLE_LOG)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_complete_html_document(self):
+        out = render_html(self.path)
+        self.assertTrue(out.startswith("<!DOCTYPE html>"))
+        self.assertIn("<html", out)
+        self.assertTrue(out.rstrip().endswith("</html>"))
+
+    def test_contains_every_generation(self):
+        out = render_html(self.path)
+        self.assertIn("Generation 0", out)
+        self.assertIn("Generation 1", out)
+        self.assertIn('id="generation-0"', out)
+        self.assertIn('id="generation-1"', out)
+
+    def test_reports_generation_count(self):
+        out = render_html(self.path)
+        self.assertIn("2 generations recorded.", out)
+
+    def test_includes_field_values(self):
+        out = render_html(self.path)
+        self.assertIn("Human Seed", out)
+        self.assertIn("evolution log parser", out)
+
+    def test_is_self_contained(self):
+        # No external stylesheets or scripts: the page works offline.
+        out = render_html(self.path)
+        self.assertIn("<style>", out)
+        self.assertNotIn("<link", out)
+        self.assertNotIn("http://", out)
+        self.assertNotIn("https://", out)
+
+    def test_escapes_html_special_characters(self):
+        payload = "<script>alert(1)</script>"
+        bad_log = SAMPLE_LOG.replace("Agent: Human Seed", f"Agent: {payload}")
+        path = self._write_log(bad_log)
+        try:
+            out = render_html(path)
+            self.assertNotIn(payload, out)
+            self.assertIn("&lt;script&gt;", out)
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_empty_log_renders_valid_document(self):
+        path = self._write_log("# Evolution Log\n")
+        try:
+            out = render_html(path)
+            self.assertTrue(out.startswith("<!DOCTYPE html>"))
+            self.assertIn("0 generations recorded.", out)
+            self.assertIn("No generations recorded yet.", out)
+        finally:
+            path.unlink(missing_ok=True)
 
 
 class TestCheckBranchName(unittest.TestCase):
