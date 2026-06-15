@@ -7,6 +7,7 @@ from .evolution import (
     current_generation,
     diff_generations,
     export_evolution_log,
+    next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
     render_html,
@@ -89,6 +90,13 @@ def main() -> None:
             print(str(exc), file=sys.stderr)
             sys.exit(1)
 
+    elif command == "template":
+        try:
+            print(next_generation_template(log_path), end="")
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            sys.exit(1)
+
     elif command == "check-branch" and len(args) > 1:
         check = check_branch_name(args[1], log_path)
         print(f"Branch: {check.branch}")
@@ -150,7 +158,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | check-branch <branch> | diff <N> <M> | search <term>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term>]")
         sys.exit(1)
 
 

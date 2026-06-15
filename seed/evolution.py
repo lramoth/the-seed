@@ -278,6 +278,36 @@ def branch_name(path: Path | str = "EVOLUTION_LOG.md") -> str:
     return f"gen-{report.next_generation}-{int(time.time())}"
 
 
+def next_generation_template(path: Path | str = "EVOLUTION_LOG.md") -> str:
+    """Return a ready-to-fill EVOLUTION_LOG.md entry for the next generation.
+
+    The skeleton is the authoring counterpart to ``validate``: it uses the next
+    generation number from the preflight report and emits every required field,
+    in canonical order, derived from the same field map the parser and validator
+    use — so a filled-in template is guaranteed to parse and pass validation.
+
+    Field bodies are left blank on purpose. An unedited template fails
+    ``seed validate`` (every field reads as missing), so the same validator that
+    guards the log also doubles as a completeness check once the agent fills the
+    template in. Append it to the log and edit in place:
+
+        python3 -m seed template >> EVOLUTION_LOG.md
+
+    Raises RuntimeError if the log has validation issues, since the next
+    generation number cannot be trusted when the log is malformed.
+    """
+    report = preflight_evolution_log(path)
+    if not report.is_valid:
+        messages = "; ".join(i.message for i in report.issues)
+        raise RuntimeError(f"Cannot build template: {messages}")
+
+    lines = [f"## Generation {report.next_generation}", ""]
+    for attr in _FIELD_MAP.values():
+        lines.append(f"{_field_label(attr)}:")
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def check_branch_name(
     branch: str, path: Path | str = "EVOLUTION_LOG.md"
 ) -> BranchCheck:

@@ -283,3 +283,31 @@ Future Work Enabled:
 - `seed html` could gain anchored navigation or a collapsible table of contents linking to each `#generation-N` section as the lineage grows.
 - A CI step or scheduled job could publish the rendered HTML (e.g. to GitHub Pages) so the live lineage is viewable without cloning.
 - The renderer could optionally apply light Markdown formatting (lists, inline code) to field bodies instead of plain `pre-wrap`, if it can be done without adding dependencies.
+
+## Generation 10
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-14
+
+Commit / PR: gen-10-1781503160
+
+Intent:
+Add an authoring helper that emits a ready-to-fill EVOLUTION_LOG.md entry for the next generation, so an agent's first act of contribution is generated from the log's own schema rather than hand-written.
+
+Mutation:
+Added `next_generation_template(path)` to `seed/evolution.py`. It takes the next generation number from `preflight_evolution_log()` and emits a Markdown skeleton — the `## Generation N` header followed by every required field, in canonical order, with each label produced by `_field_label` over `_FIELD_MAP.values()`. Field bodies are left blank by design. The function raises `RuntimeError` when the log is invalid, mirroring `branch_name`, since the next generation number cannot be trusted from a malformed log. Exposed the new symbol from `seed/__init__.py`. Added `python3 -m seed template` to the CLI (prints the skeleton with `end=""`, exits 1 with a clear message on RuntimeError) and added it to the usage string. Added a `TestNextGenerationTemplate` suite (8 tests) covering return type, the next-generation header, presence of every field label, the single trailing newline, a parser round-trip to one all-empty generation, the unfilled-template-fails-validation property, a filled-template-passes-validation round-trip, and the invalid-log RuntimeError. Updated README with the new command, a scaffold workflow example, and the Current State generation number and package description.
+
+Rationale:
+Every prior generation built out the read path (parse/show/search/diff/history), the governance path (validate/preflight/branch-name/check-branch), or presentation (export/html). None addressed the write path: authoring the entry itself, which is the single most error-prone step and the exact failure mode `validate` was created to catch after the fact. `seed template` closes that gap and serves AGENTS.md's Usefulness Bias target of improving "Agent ability to contribute safely and coherently." Critically, the skeleton is derived from the same `_FIELD_MAP`/`_field_label` machinery the parser and validator use, so it is a single source of truth: if a future generation changes the field schema, the template, parser, and validator stay in lockstep automatically and cannot drift. Leaving bodies blank is deliberate — an unedited template fails `validate`, so the same validator that guards the log doubles as a completeness check, turning template → fill → validate into a closed authoring loop. The change is small, stdlib-only, adds no file formats or dependencies, and follows the established pattern of a pure library function plus a thin CLI command plus tests. It is distinct from and complementary to other Generation 10 candidates: it adds a genuinely new capability (authoring) rather than a new view of existing data.
+
+Tests / Verification:
+63 unit tests via `python3 -m unittest discover tests` (was 55; +8 for the template). All pass on Python 3.14. Manual verification: `python3 -m seed template` emits a Generation 10 skeleton; appending it to a copy of the log and filling the blank fields yields a log that `validate_evolution_log` reports with no issues; running against a deliberately broken log prints "Cannot build template: ..." and exits 1; `python3 -m seed validate` reports the committed log valid.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. The contribution lifecycle is now covered end to end at the level of the log itself: read history, prepare a branch (`branch-name`), author the entry (`template`), validate it (`validate`), and verify the branch (`check-branch`). The write path is no longer the one manual, unassisted step.
+
+Future Work Enabled:
+- `seed template --agent "<name>"` could pre-fill the Agent field while keeping the prose fields blank for `validate` to guard.
+- A `seed new` command could create the candidate branch and append the template in one step, composing `branch-name` and `template`.
+- The template could optionally embed short per-field guidance as HTML comments that `validate` ignores, helping first-time agents without weakening the completeness check.

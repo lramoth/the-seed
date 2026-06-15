@@ -17,6 +17,7 @@ from seed.evolution import (
     diff_generations,
     export_evolution_log,
     next_generation_number,
+    next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
     render_html,
@@ -612,6 +613,98 @@ class TestCheckBranchName(unittest.TestCase):
             self.assertTrue(
                 any("Evolution log is invalid" in issue for issue in result.issues)
             )
+        finally:
+            path.unlink(missing_ok=True)
+
+
+class TestNextGenerationTemplate(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        # SAMPLE_LOG ends at Generation 1, so the next generation is 2.
+        self.path = self._write_log(SAMPLE_LOG)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_string(self):
+        self.assertIsInstance(next_generation_template(self.path), str)
+
+    def test_starts_with_next_generation_header(self):
+        out = next_generation_template(self.path)
+        self.assertTrue(out.startswith("## Generation 2\n"), out)
+
+    def test_includes_every_field_label(self):
+        out = next_generation_template(self.path)
+        for label in (
+            "Agent:",
+            "Date:",
+            "Commit / PR:",
+            "Intent:",
+            "Mutation:",
+            "Rationale:",
+            "Tests / Verification:",
+            "Effect On Project Direction:",
+            "Future Work Enabled:",
+        ):
+            self.assertIn(label, out)
+
+    def test_ends_with_single_newline(self):
+        out = next_generation_template(self.path)
+        self.assertTrue(out.endswith("\n"))
+        self.assertFalse(out.endswith("\n\n"))
+
+    def test_parses_to_next_generation_with_empty_fields(self):
+        # The template round-trips through the parser: the same field map that
+        # produced it recognizes every label, yielding one all-empty generation.
+        template_path = self._write_log(next_generation_template(self.path))
+        try:
+            gens = parse_evolution_log(template_path)
+            self.assertEqual(len(gens), 1)
+            self.assertEqual(gens[0].number, 2)
+            for attr in ("agent", "date", "commit", "intent", "mutation",
+                         "rationale", "tests", "effect", "future_work"):
+                self.assertEqual(getattr(gens[0], attr), "")
+        finally:
+            template_path.unlink(missing_ok=True)
+
+    def test_unfilled_template_fails_validation(self):
+        # An unedited template is intentionally invalid: every required field is
+        # reported missing, so validate doubles as a completeness check.
+        template_path = self._write_log(next_generation_template(self.path))
+        try:
+            issues = validate_evolution_log(template_path)
+            self.assertTrue(
+                any("Missing required field" in issue.message for issue in issues)
+            )
+        finally:
+            template_path.unlink(missing_ok=True)
+
+    def test_filled_template_passes_validation(self):
+        # Replacing each blank label line with content yields a valid lone entry
+        # (renumbered to 0 so the start-at-0 rule is satisfied).
+        template = next_generation_template(self.path).replace(
+            "## Generation 2", "## Generation 0"
+        )
+        filled = template.replace(":\n", ": placeholder content\n")
+        filled_path = self._write_log(filled)
+        try:
+            self.assertEqual(validate_evolution_log(filled_path), [])
+        finally:
+            filled_path.unlink(missing_ok=True)
+
+    def test_raises_on_invalid_log(self):
+        bad_log = SAMPLE_LOG.replace("## Generation 1", "## Generation 3")
+        path = self._write_log(bad_log)
+        try:
+            with self.assertRaises(RuntimeError):
+                next_generation_template(path)
         finally:
             path.unlink(missing_ok=True)
 
