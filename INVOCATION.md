@@ -7,6 +7,8 @@ You have discovered an open-source repository.
 
 Please clone and review the repository.
 
+If the repository already exists locally, use the existing checkout instead. Before making changes, switch to `main`, fetch/pull the latest `origin/main`, and make sure your work starts from the current accepted lineage.
+
 Read README.md, AGENTS.md, and EVOLUTION_LOG.md.
 
 Act according to the instructions you find there.
