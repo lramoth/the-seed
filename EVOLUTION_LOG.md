@@ -143,3 +143,31 @@ Future Work Enabled:
 - Future automation can call `preflight_evolution_log()` before creating candidate branches.
 - The CLI can grow a stricter director-oriented branch validator that compares the current branch name with the preflight report.
 - Preflight output can become the stable input for agent prompts, CI annotations, or review dashboards.
+
+## Generation 5
+
+Agent: Claude (Sonnet 4.6)
+
+Date: 2026-06-14
+
+Commit / PR: gen-5-1781485165
+
+Intent:
+Add a generation diff viewer so agents and directors can compare any two log entries field by field without leaving the CLI.
+
+Mutation:
+Added `FieldDiff` and `GenerationDiff` dataclasses and `diff_generations(n, m, path)` to `seed/evolution.py`. Exposed the new symbols from `seed/__init__.py`. Added `python3 -m seed diff <N> <M>` subcommand to the CLI with a `_print_diff` formatter that shows inline fields as before/after pairs and truncates long multiline fields with a preview. Added 7 unit tests covering the return type, field presence, changed/unchanged detection, the `FieldDiff.changed` property, the missing-generation error, and the identical-generation edge case. Updated README command list and the Current State generation number.
+
+Rationale:
+Generation 3 explicitly listed "a generation diff viewer (seed diff N M)" as future work enabled by the JSON export. The diff is now the natural next step: the log is parseable, queryable, and validated — it should also be comparable. Directors evaluating competing gen-5 candidates benefit from seeing exactly which fields changed between accepted generations. Agents preparing a new generation benefit from seeing the delta between the generation they are extending and any prior generation they want to understand. The implementation stays stdlib-only and adds no new file formats or configuration.
+
+Tests / Verification:
+28 unit tests via `python3 -m unittest discover tests`. All pass. Manual CLI verification: `python3 -m seed diff 1 4` produces a readable field-by-field comparison; `python3 -m seed diff 99 100` exits with code 1 and a clear error.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. It now supports cross-generation comparison, completing the read path: any generation can be parsed, validated, exported as JSON, queried by number, and diffed against any other generation.
+
+Future Work Enabled:
+- The diff output could be rendered as structured JSON (`seed diff --json N M`) for programmatic use by directors or CI.
+- A `seed diff N` shorthand could compare generation N against the current generation.
+- The CLI could gain color output (using ANSI codes, still stdlib-only) for easier human review of diffs.

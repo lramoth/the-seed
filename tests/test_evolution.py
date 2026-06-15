@@ -4,8 +4,11 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from seed.evolution import (
+    FieldDiff,
     Generation,
+    GenerationDiff,
     current_generation,
+    diff_generations,
     export_evolution_log,
     next_generation_number,
     parse_evolution_log,
@@ -310,6 +313,56 @@ class TestExportEvolutionLog(unittest.TestCase):
         data = json.loads(export_evolution_log(self.path))
         self.assertEqual(data[0]["number"], 0)
         self.assertEqual(data[1]["number"], 1)
+
+
+class TestDiffGenerations(unittest.TestCase):
+    def setUp(self):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(SAMPLE_LOG)
+        tmp.close()
+        self.path = Path(tmp.name)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_generation_diff(self):
+        result = diff_generations(0, 1, self.path)
+        self.assertIsInstance(result, GenerationDiff)
+
+    def test_from_and_to_numbers(self):
+        result = diff_generations(0, 1, self.path)
+        self.assertEqual(result.from_number, 0)
+        self.assertEqual(result.to_number, 1)
+
+    def test_all_fields_present(self):
+        result = diff_generations(0, 1, self.path)
+        field_names = {fd.field for fd in result.fields}
+        for expected in ("agent", "date", "commit", "intent", "mutation",
+                         "rationale", "tests", "effect", "future_work"):
+            self.assertIn(expected, field_names)
+
+    def test_changed_fields_excludes_unchanged(self):
+        result = diff_generations(0, 1, self.path)
+        # date is the same in both sample entries
+        changed_names = {fd.field for fd in result.changed_fields}
+        self.assertIn("agent", changed_names)
+        self.assertIn("intent", changed_names)
+
+    def test_field_diff_changed_property(self):
+        result = diff_generations(0, 1, self.path)
+        for fd in result.fields:
+            self.assertIsInstance(fd, FieldDiff)
+            self.assertEqual(fd.changed, fd.old != fd.new)
+
+    def test_raises_for_missing_generation(self):
+        with self.assertRaises(ValueError):
+            diff_generations(0, 99, self.path)
+
+    def test_identical_generations_have_no_changed_fields(self):
+        result = diff_generations(0, 0, self.path)
+        self.assertEqual(result.changed_fields, [])
 
 
 if __name__ == "__main__":
