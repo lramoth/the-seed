@@ -150,7 +150,7 @@ The Director may:
 - Evaluate competing mutations
 - Recommend a candidate for acceptance
 - Create pull requests as part of an approved governance process
-- The Director may choose not to select any candidate. See Null Selection.
+- Choose not to select any candidate. See Null Selection.
 
 The Director must not merge changes directly into `main`.
 
