@@ -3,6 +3,7 @@ from pathlib import Path
 
 from .evolution import (
     branch_name,
+    check_branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
@@ -84,6 +85,19 @@ def main() -> None:
             print(str(exc), file=sys.stderr)
             sys.exit(1)
 
+    elif command == "check-branch" and len(args) > 1:
+        check = check_branch_name(args[1], log_path)
+        print(f"Branch: {check.branch}")
+        if check.is_valid:
+            print("Status: valid")
+            print(f"Generation: {check.generation}")
+            print(f"Timestamp: {check.timestamp}")
+            return
+        print("Status: invalid", file=sys.stderr)
+        for issue in check.issues:
+            print(f"- {issue}", file=sys.stderr)
+        sys.exit(1)
+
     elif command == "diff" and len(args) == 3:
         try:
             from_n = int(args[1])
@@ -132,7 +146,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight | branch-name | diff <N> <M> | search <term>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | preflight | branch-name | check-branch <branch> | diff <N> <M> | search <term>]")
         sys.exit(1)
 
 

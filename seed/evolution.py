@@ -68,6 +68,19 @@ class GenerationDiff:
         return [f for f in self.fields if f.changed]
 
 
+@dataclass
+class BranchCheck:
+    branch: str
+    generation: int | None
+    timestamp: int | None
+    expected_generation: int | None
+    issues: list[str]
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.issues
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -84,6 +97,7 @@ _REQUIRED_FIELDS = tuple(_FIELD_MAP.values())
 
 _GEN_HEADER = re.compile(r"^## Generation (\d+)", re.MULTILINE)
 _FIELD_LINE = re.compile(r"^([A-Za-z/ ]+?):\s*(.*)")
+_BRANCH_NAME = re.compile(r"^gen-(\d+)-(\d+)$")
 
 
 def parse_evolution_log(path: Path | str = "EVOLUTION_LOG.md") -> list[Generation]:
@@ -190,6 +204,58 @@ def branch_name(path: Path | str = "EVOLUTION_LOG.md") -> str:
         messages = "; ".join(i.message for i in report.issues)
         raise RuntimeError(f"Cannot generate branch name: {messages}")
     return f"gen-{report.next_generation}-{int(time.time())}"
+
+
+def check_branch_name(
+    branch: str, path: Path | str = "EVOLUTION_LOG.md"
+) -> BranchCheck:
+    """Validate a candidate branch name against the evolution log.
+
+    A valid candidate branch:
+      - matches the pattern ``gen-N-<unix_timestamp>``
+      - targets ``N`` equal to the next available generation number
+
+    This is the director-facing counterpart to ``branch_name``: agents
+    generate a branch name, while directors and CI use this to confirm that a
+    given branch name is a legitimate candidate for the current next
+    generation. It never raises; all problems are reported in ``issues`` so
+    callers can rely on ``BranchCheck.is_valid`` and a clean exit code.
+    """
+    branch = branch.strip()
+    report = preflight_evolution_log(path)
+    expected = report.next_generation
+
+    match = _BRANCH_NAME.match(branch)
+    if not match:
+        return BranchCheck(
+            branch=branch,
+            generation=None,
+            timestamp=None,
+            expected_generation=expected,
+            issues=["Branch name must match the pattern 'gen-N-<unix_timestamp>'."],
+        )
+
+    generation = int(match.group(1))
+    timestamp = int(match.group(2))
+    issues: list[str] = []
+
+    if not report.is_valid:
+        issues.append(
+            "Evolution log is invalid; cannot confirm the next generation number."
+        )
+    elif generation != expected:
+        issues.append(
+            f"Branch targets Generation {generation}, "
+            f"but the next available generation is {expected}."
+        )
+
+    return BranchCheck(
+        branch=branch,
+        generation=generation,
+        timestamp=timestamp,
+        expected_generation=expected,
+        issues=issues,
+    )
 
 
 def diff_generations(

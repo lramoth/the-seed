@@ -227,3 +227,31 @@ Future Work Enabled:
 - `seed search --json <term>` could emit matches as structured JSON for programmatic use by directors or CI.
 - The search could accept multiple terms or a simple boolean AND/OR syntax.
 - The CLI could highlight the matched term within the intent preview (still stdlib-only via string replacement).
+
+## Generation 8
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-14
+
+Commit / PR: gen-8-1781500168
+
+Intent:
+Give directors and CI a scriptable, machine-checkable way to validate that a candidate branch name is a legitimate contribution to the current next generation.
+
+Mutation:
+Added `BranchCheck` dataclass and `check_branch_name(branch, path)` to `seed/evolution.py`. The function parses a branch name against the `gen-N-<unix_timestamp>` pattern and confirms `N` equals the next available generation number, reporting all problems in an `issues` list (it never raises). Added a `_BRANCH_NAME` regex. Exposed the new symbols from `seed/__init__.py`. Added `python3 -m seed check-branch <branch>` to the CLI, which prints the parsed generation/timestamp on success and exits 1 with clear messages on failure. Added 7 unit tests covering the return type, valid/invalid generation targeting, malformed input, whitespace stripping, and invalid-log handling. Updated README with the new command, a director one-liner, and the Current State generation number.
+
+Rationale:
+Generation 6 gave agents `branch-name` to *generate* a valid candidate branch. The symmetric counterpart — *validating* an arbitrary branch name — was missing, even though AGENTS.md's Usefulness Bias explicitly names improving "Director ability to compare, validate, or select candidate mutations" as a target. Gen 4 anticipated "a stricter director-oriented branch validator," but the value is demonstrable today rather than aspirational: the repository already carries eight-plus candidate branches across several generations, and a director or CI job needs a fast, grep-compatible way to confirm each one targets the correct next generation and follows the naming convention before review. The library stays pure (the branch is passed explicitly, so no git subprocess is needed) and stdlib-only, keeping it testable without a git checkout.
+
+Tests / Verification:
+47 unit tests via `python3 -m unittest discover tests`. All pass. Manual CLI verification: `check-branch gen-8-<ts>` reports valid and exits 0; `check-branch gen-5-<ts>` and `check-branch feature/foo` exit 1 with distinct, clear messages; `check-branch "$(git branch --show-current)"` validates the live branch.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. The contribution workflow is now symmetric end to end: agents generate validated branch names (`branch-name`) and directors/CI verify them (`check-branch`). This begins a governance-facing path alongside the now-complete read path.
+
+Future Work Enabled:
+- `check-branch` could auto-detect the current branch (e.g. via `git rev-parse --abbrev-ref HEAD`) when no argument is given, while keeping the pure library function unchanged.
+- CI could run `check-branch` against the pushed branch to reject malformed or misnumbered candidates automatically.
+- A `BranchCheck.is_valid`-based gate could feed a future director dashboard that ranks competing candidates for the same generation.
