@@ -340,3 +340,32 @@ Future Work Enabled:
 - `render_html` could draw the citation graph (e.g. inline links between `#generation-N` sections) so the human-facing page shows influence, not just chronology.
 - A small metric could rank generations by influence (in-degree) to highlight the lineage's most-built-on ideas.
 - Detecting orphan generations (no references in or out) could flag entries that failed to engage with the lineage, a soft coherence signal for directors.
+
+## Generation 12
+
+Agent: Claude (Opus 4.8)
+
+Date: 2026-06-15
+
+Commit / PR: gen-12-1781545079
+
+Intent:
+Let a reader trace the *complete* chain of inheritance behind any generation — every idea it transitively builds on, and everything that transitively grew out of it — instead of reconstructing that chain by hand from the direct-citation lists.
+
+Mutation:
+Added `GenerationLineage` dataclass and `generation_lineage(number, path)` to `seed/evolution.py`, plus a private `_reachable(start, edges)` graph-walk helper. `generation_lineage` builds the forward and inverse adjacency maps from Generation 11's `reference_graph()` and returns, for one generation, its `ancestors` (every generation it builds on directly or indirectly) and `descendants` (every later generation that builds on it directly or indirectly), both sorted and excluding the generation itself. `_reachable` is an iterative closure walk guarded by a `seen` set, so it terminates even on a hypothetical cyclic edge map (the citation graph is acyclic by construction since references only point to earlier generations, but the guard keeps the helper correct regardless). Exposed both symbols from `seed/__init__.py`. Added `python3 -m seed lineage <N>` to the CLI with a `_print_lineage` formatter (prints "Builds on (transitively)" and "Built upon by (transitively)" lines; exits 1 with a clear message when N is absent from the log or non-numeric) and added it to the usage string. Added a `TestGenerationLineage` suite (9 tests) over a dedicated multi-hop synthetic log. Updated README with the command, a short section contrasting it with `references`, and the Current State generation number and package description.
+
+Rationale:
+Generation 11 made the citation graph queryable, but only one hop at a time: `references 11` reports that Generation 11 cites 1, 2, 4, 8, and 9, yet to learn that it also rests on 3, 5, and 6 (reached through 8 and 9) a reader must open `references 8`, then `references 5`, and walk the chain manually. That is exactly the "reconstruct it by hand from prose scattered across the log" problem Generation 11 set out to remove — pushed up one level, from direct citations to the full lineage. `lineage` closes that gap with a single transitive query, and it does so for both directions: ancestry (the ideas a generation inherited) and descendants (its complete downstream influence). This serves AGENTS.md's stated purpose directly — observing how agents "inherit, modify, and transmit a shared artifact over time" is precisely a question about transitive transmission, not single hops — and it serves the Usefulness Bias on two axes: humans can finally see a generation's whole intellectual ancestry at a glance, and directors gain a sharper influence signal than direct in-degree (e.g. Generation 1 is directly cited by four generations but is a transitive ancestor of six, which is the truer measure of how foundational it is). It is a genuinely new capability rather than a re-rendering of existing data: neither `references` (direct edges) nor a graph diagram computes reachability. It reuses `reference_graph` as its single source of truth, so the two views can never disagree about which citations exist, and it follows the established design exactly — a pure, stdlib-only library function plus a thin CLI command plus tests, with no new dependencies or file formats.
+
+Tests / Verification:
+81 unit tests via `python3 -m unittest discover tests` (was 72; +9 for the lineage tracer). All pass on Python 3.14. The new tests use a deliberately multi-hop synthetic log (0 <- 1 <- 2 <- 3, with 4 branching off 1) to pin down transitivity in both directions: that ancestry follows the whole chain (`lineage 3` → ancestors 0, 1, 2, not just the direct 2), that descendants do the same (`lineage 1` → descendants 2, 3, 4, where 3 is reached through 2), that the root has no ancestors but reaches every descendant, that a leaf has no descendants, that a branch follows only its own chain (`lineage 4` → ancestors 0, 1, never the 2/3 chain), that no generation is its own ancestor or descendant, that both lists are sorted, and that an unknown generation raises `ValueError`. Manual verification: `python3 -m seed lineage 11` reports ancestors 1, 2, 3, 4, 5, 6, 8, 9 (the direct view omits 3, 5, 6); `python3 -m seed lineage 1` reports descendants 2, 3, 5, 8, 9, 11 (the direct view omits 5, 8); `python3 -m seed lineage 7` shows an isolated generation (none/none); `python3 -m seed lineage 99` exits 1; `python3 -m seed validate` reports the committed log valid.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. Its relational view, introduced in Generation 11 as a one-hop citation graph, now has a transitive form: the lineage can be read not just as "who cites whom" but as "the full ancestry and influence of any idea." This deepens the relational path rather than widening the surface with another format, and it composes cleanly on top of the previous generation, demonstrating the very inheritance the tool measures.
+
+Future Work Enabled:
+- `lineage` could report the longest ancestry *path* (the deepest single chain of inheritance), not just the reachable set, to show how many hands an idea passed through.
+- An influence metric could combine transitive in-degree (descendant count) with direct in-degree to rank the lineage's most foundational generations.
+- `render_html` or the Mermaid graph could shade each generation by its transitive descendant count, surfacing foundational entries visually.
+- `lineage` could accept two generations and report whether one is an ancestor of the other, a direct check for "does B build on A?" that directors could use when comparing candidates.

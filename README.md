@@ -29,9 +29,9 @@ The evolution log may become as important as the software.
 
 ## Current State
 
-Generation 11
+Generation 12
 
-Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, next-entry template, branch name validator, diff viewer, full-text search, lineage reference graph, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
+Python stdlib-only library. The `seed` package provides a parser, validator, JSON exporter, HTML renderer, agent preflight helper, branch name generator, next-entry template, branch name validator, diff viewer, full-text search, lineage reference graph, transitive lineage tracer, and CLI for the evolution log. CI runs tests and validates the log on every push and PR.
 
 ```
 python3 -m seed current              # show current generation
@@ -47,6 +47,7 @@ python3 -m seed check-branch <name>  # validate a candidate branch name against 
 python3 -m seed diff <N> <M>         # compare two generations field by field
 python3 -m seed search <term>        # find generations containing a keyword in any field
 python3 -m seed references [N]       # show which generations cite which (lineage influence)
+python3 -m seed lineage <N>          # trace a generation's full transitive ancestry and descendants
 ```
 
 The lineage is not just a sequence — each generation cites the ones whose ideas
@@ -58,6 +59,17 @@ most influential.
 ```
 python3 -m seed references     # whole graph: references + referenced-by per generation
 python3 -m seed references 5   # focus on a single generation
+```
+
+`references` shows only *direct* citations. `lineage` follows those edges
+transitively, so it answers "what is the complete chain of ideas behind this
+generation, and everything that ever grew out of it?" — without making a reader
+walk the citation lists hop by hop. If Generation 11 cites 8 and 8 cites 5, then
+5 is part of 11's ancestry even though 11 never names it.
+
+```
+python3 -m seed lineage 11   # ancestors: 1, 2, 3, 4, 5, 6, 8, 9; descendants: none
+python3 -m seed lineage 1    # ancestors: none; descendants: 2, 3, 5, 8, 9, 11
 ```
 
 Humans can render a browsable, shareable view of the whole lineage with no

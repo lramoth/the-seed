@@ -10,6 +10,7 @@ from seed.evolution import (
     FieldDiff,
     Generation,
     GenerationDiff,
+    GenerationLineage,
     GenerationReferences,
     SearchMatch,
     branch_name,
@@ -17,6 +18,7 @@ from seed.evolution import (
     current_generation,
     diff_generations,
     export_evolution_log,
+    generation_lineage,
     next_generation_number,
     next_generation_template,
     parse_evolution_log,
@@ -817,6 +819,135 @@ class TestReferenceGraph(unittest.TestCase):
             self.assertEqual(reference_graph(empty_path), [])
         finally:
             empty_path.unlink(missing_ok=True)
+
+
+# A deliberately multi-hop lineage so transitive closure differs from the
+# direct citations: 0 <- 1 <- 2 <- 3, with 4 branching off 1.
+#   references:  1->0, 2->1, 3->2, 4->1
+LINEAGE_LOG = textwrap.dedent("""\
+    # Evolution Log
+
+    ## Generation 0
+
+    Agent: Human Seed
+    Date: 2026-01-01
+    Commit / PR: Initial Seed
+    Intent: Seed the repository.
+    Mutation: Add the initial documents.
+    Rationale: No prior art to build on.
+    Tests / Verification: Not applicable.
+    Effect on Project Direction: Begin.
+    Future Work Enabled: Invite the first contribution.
+
+    ## Generation 1
+
+    Agent: Agent A
+    Date: 2026-01-02
+    Commit / PR: gen-1-1000000001
+    Intent: Extend the seed.
+    Mutation: Add a feature.
+    Rationale: Builds directly on Generation 0.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Forward.
+    Future Work Enabled: More to come.
+
+    ## Generation 2
+
+    Agent: Agent B
+    Date: 2026-01-03
+    Commit / PR: gen-2-1000000002
+    Intent: Extend further.
+    Mutation: Add another feature.
+    Rationale: Extends Generation 1.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Forward.
+    Future Work Enabled: Even more.
+
+    ## Generation 3
+
+    Agent: Agent C
+    Date: 2026-01-04
+    Commit / PR: gen-3-1000000003
+    Intent: Keep going.
+    Mutation: Refine the feature.
+    Rationale: Continues from Generation 2.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Forward.
+    Future Work Enabled: Still more.
+
+    ## Generation 4
+
+    Agent: Agent D
+    Date: 2026-01-05
+    Commit / PR: gen-4-1000000004
+    Intent: Try a different angle.
+    Mutation: Add a parallel feature.
+    Rationale: Branches off Generation 1.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Sideways.
+    Future Work Enabled: Converge later.
+""")
+
+
+class TestGenerationLineage(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        self.path = self._write_log(LINEAGE_LOG)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_generation_lineage_type(self):
+        lineage = generation_lineage(3, self.path)
+        self.assertIsInstance(lineage, GenerationLineage)
+        self.assertEqual(lineage.generation, 3)
+
+    def test_ancestors_are_transitive(self):
+        # Generation 3 directly cites only Generation 2, but transitively
+        # inherits 2 -> 1 -> 0.
+        self.assertEqual(generation_lineage(3, self.path).ancestors, [0, 1, 2])
+
+    def test_descendants_are_transitive(self):
+        # Generation 1 is cited directly by 2 and 4; 3 reaches it through 2.
+        self.assertEqual(
+            generation_lineage(1, self.path).descendants, [2, 3, 4]
+        )
+
+    def test_root_has_no_ancestors_but_all_descendants(self):
+        lineage = generation_lineage(0, self.path)
+        self.assertEqual(lineage.ancestors, [])
+        self.assertEqual(lineage.descendants, [1, 2, 3, 4])
+
+    def test_leaf_has_no_descendants(self):
+        self.assertEqual(generation_lineage(3, self.path).descendants, [])
+
+    def test_branch_ancestry_follows_only_its_own_chain(self):
+        # Generation 4 branches off 1, so its ancestry is 1 -> 0 and nothing
+        # from the 2/3 chain.
+        self.assertEqual(generation_lineage(4, self.path).ancestors, [0, 1])
+
+    def test_excludes_self(self):
+        for n in range(5):
+            lineage = generation_lineage(n, self.path)
+            self.assertNotIn(n, lineage.ancestors)
+            self.assertNotIn(n, lineage.descendants)
+
+    def test_lists_are_sorted(self):
+        for n in range(5):
+            lineage = generation_lineage(n, self.path)
+            self.assertEqual(lineage.ancestors, sorted(lineage.ancestors))
+            self.assertEqual(lineage.descendants, sorted(lineage.descendants))
+
+    def test_unknown_generation_raises(self):
+        with self.assertRaises(ValueError):
+            generation_lineage(99, self.path)
 
 
 if __name__ == "__main__":

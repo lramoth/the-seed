@@ -7,6 +7,7 @@ from .evolution import (
     current_generation,
     diff_generations,
     export_evolution_log,
+    generation_lineage,
     next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
@@ -159,6 +160,19 @@ def main() -> None:
             for ref in graph:
                 _print_references(ref)
 
+    elif command == "lineage" and len(args) > 1:
+        try:
+            n = int(args[1])
+        except ValueError:
+            print(f"Invalid generation number: {args[1]}", file=sys.stderr)
+            sys.exit(1)
+        try:
+            result = generation_lineage(n, log_path)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            sys.exit(1)
+        _print_lineage(result)
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -176,7 +190,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N]]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N>]")
         sys.exit(1)
 
 
@@ -204,6 +218,14 @@ def _print_references(ref: "GenerationReferences") -> None:  # noqa: F821
         f"Generation {ref.generation:>3}  "
         f"references: {refs}   referenced by: {by}"
     )
+
+
+def _print_lineage(lineage: "GenerationLineage") -> None:  # noqa: F821
+    ancestors = ", ".join(str(n) for n in lineage.ancestors) or "none"
+    descendants = ", ".join(str(n) for n in lineage.descendants) or "none"
+    print(f"Generation {lineage.generation}")
+    print(f"  Builds on (transitively):     {ancestors}")
+    print(f"  Built upon by (transitively): {descendants}")
 
 
 def _print_generation(gen: "Generation") -> None:  # noqa: F821

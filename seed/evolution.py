@@ -89,6 +89,13 @@ class GenerationReferences:
     referenced_by: list[int]
 
 
+@dataclass
+class GenerationLineage:
+    generation: int
+    ancestors: list[int]
+    descendants: list[int]
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -469,6 +476,58 @@ def _extract_references(text: str) -> set[int]:
         number = match.group(1) or match.group(2)
         found.add(int(number))
     return found
+
+
+def generation_lineage(
+    number: int, path: Path | str = "EVOLUTION_LOG.md"
+) -> GenerationLineage:
+    """Return the transitive ancestry and descendants of a generation.
+
+    Where ``reference_graph`` reports only the *direct* citations of each
+    generation, this follows those citation edges transitively. ``ancestors``
+    is every generation that ``number`` builds on directly or indirectly — the
+    full intellectual lineage it inherits — and ``descendants`` is every later
+    generation that builds on ``number`` directly or indirectly: its complete
+    downstream influence. So if 11 cites 8 and 8 cites 5, then 5 is an ancestor
+    of 11 even though 11 never names it. Both lists are sorted and never
+    include ``number`` itself.
+
+    This is the transitive counterpart to ``reference_graph``: a reader who
+    wants the *whole* chain of inheritance behind a generation would otherwise
+    have to walk the per-generation citation lists by hand, hop by hop.
+
+    Raises ValueError if ``number`` is not present in the log.
+    """
+    graph = {r.generation: r for r in reference_graph(path)}
+    if number not in graph:
+        raise ValueError(f"Generation {number} not found in evolution log.")
+
+    references = {g: ref.references for g, ref in graph.items()}
+    referenced_by = {g: ref.referenced_by for g, ref in graph.items()}
+    return GenerationLineage(
+        generation=number,
+        ancestors=sorted(_reachable(number, references)),
+        descendants=sorted(_reachable(number, referenced_by)),
+    )
+
+
+def _reachable(start: int, edges: dict[int, list[int]]) -> set[int]:
+    """Return every node reachable from ``start`` via ``edges`` (excluding it).
+
+    A ``seen`` set guards against revisiting nodes, so the walk terminates even
+    if the edge map ever contains a cycle (the citation graph cannot, since
+    references only point to earlier generations, but the guard keeps the
+    helper correct regardless of its input).
+    """
+    seen: set[int] = set()
+    stack = list(edges.get(start, []))
+    while stack:
+        node = stack.pop()
+        if node == start or node in seen:
+            continue
+        seen.add(node)
+        stack.extend(edges.get(node, []))
+    return seen
 
 
 def _parse_generation(number: int, body: str) -> Generation:
