@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 import re
 
 from seed.evolution import (
+    AgentContributions,
     BranchCheck,
     FieldDiff,
     Generation,
@@ -13,12 +14,14 @@ from seed.evolution import (
     GenerationLineage,
     GenerationReferences,
     SearchMatch,
+    agent_contributions,
     branch_name,
     check_branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
     generation_lineage,
+    list_agents,
     next_generation_number,
     next_generation_template,
     parse_evolution_log,
@@ -1029,6 +1032,150 @@ class TestGenerationLineage(unittest.TestCase):
     def test_unknown_generation_raises(self):
         with self.assertRaises(ValueError):
             generation_lineage(99, self.path)
+
+
+AGENT_LOG = textwrap.dedent("""\
+    # Evolution Log
+
+    ## Generation 0
+
+    Agent: Human Seed
+    Date: Day 0
+    Commit / PR: seed
+    Intent: Start the project.
+    Mutation: Added the initial documents.
+    Rationale: Begin.
+    Tests / Verification: Not applicable.
+    Effect on Project Direction: No direction yet.
+    Future Work Enabled: Agents may now contribute.
+
+    ## Generation 1
+
+    Agent: Claude (Sonnet 4.6)
+    Date: Day 1
+    Commit / PR: gen-1
+    Intent: Add a parser.
+    Mutation: Added seed package.
+    Rationale: Makes the log queryable.
+    Tests / Verification: Unit tests.
+    Effect on Project Direction: A Python library.
+    Future Work Enabled: Future agents can build on this.
+
+    ## Generation 2
+
+    Agent: Codex (GPT-5)
+    Date: Day 2
+    Commit / PR: gen-2
+    Intent: Add validation.
+    Mutation: Added validate command.
+    Rationale: Keeps the log consistent.
+    Tests / Verification: Unit tests.
+    Effect on Project Direction: Governance tooling.
+    Future Work Enabled: Directors can validate branches.
+
+    ## Generation 3
+
+    Agent: Claude (Sonnet 4.6)
+    Date: Day 3
+    Commit / PR: gen-3
+    Intent: Add CI workflow.
+    Mutation: Added .github/workflows/ci.yml.
+    Rationale: Automates validation.
+    Tests / Verification: CI run.
+    Effect on Project Direction: Automated governance.
+    Future Work Enabled: More CI steps possible.
+""")
+
+
+class TestAgentContributions(unittest.TestCase):
+    """Tests for list_agents() and agent_contributions()."""
+
+    def setUp(self) -> None:
+        self._tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        self._tmp.write(AGENT_LOG)
+        self._tmp.flush()
+        self.path = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self.path.unlink(missing_ok=True)
+
+    # list_agents tests
+
+    def test_list_agents_returns_all_distinct_names(self) -> None:
+        agents = list_agents(self.path)
+        names = [a.agent for a in agents]
+        self.assertIn("Human Seed", names)
+        self.assertIn("Claude (Sonnet 4.6)", names)
+        self.assertIn("Codex (GPT-5)", names)
+        self.assertEqual(len(names), 3)
+
+    def test_list_agents_preserves_first_appearance_order(self) -> None:
+        agents = list_agents(self.path)
+        names = [a.agent for a in agents]
+        self.assertEqual(names[0], "Human Seed")
+        self.assertEqual(names[1], "Claude (Sonnet 4.6)")
+        self.assertEqual(names[2], "Codex (GPT-5)")
+
+    def test_list_agents_groups_same_agent_across_generations(self) -> None:
+        agents = list_agents(self.path)
+        claude = next(a for a in agents if "Claude" in a.agent)
+        self.assertEqual(claude.generations, [1, 3])
+        self.assertEqual(claude.count, 2)
+
+    def test_list_agents_single_generation_agent(self) -> None:
+        agents = list_agents(self.path)
+        codex = next(a for a in agents if "Codex" in a.agent)
+        self.assertEqual(codex.generations, [2])
+        self.assertEqual(codex.count, 1)
+
+    def test_list_agents_count_property(self) -> None:
+        agents = list_agents(self.path)
+        total = sum(a.count for a in agents)
+        self.assertEqual(total, 4)
+
+    def test_list_agents_empty_log(self) -> None:
+        with NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
+            f.write("# Evolution Log\n")
+            empty_path = Path(f.name)
+        try:
+            agents = list_agents(empty_path)
+            self.assertEqual(agents, [])
+        finally:
+            empty_path.unlink(missing_ok=True)
+
+    # agent_contributions tests
+
+    def test_agent_contributions_exact_match(self) -> None:
+        results = agent_contributions("Claude (Sonnet 4.6)", self.path)
+        self.assertEqual([g.number for g in results], [1, 3])
+
+    def test_agent_contributions_substring_match(self) -> None:
+        results = agent_contributions("Claude", self.path)
+        self.assertEqual([g.number for g in results], [1, 3])
+
+    def test_agent_contributions_case_insensitive(self) -> None:
+        results = agent_contributions("claude", self.path)
+        self.assertEqual([g.number for g in results], [1, 3])
+
+    def test_agent_contributions_no_match(self) -> None:
+        results = agent_contributions("Gemini", self.path)
+        self.assertEqual(results, [])
+
+    def test_agent_contributions_only_searches_agent_field(self) -> None:
+        # "Generation 1" appears in prose of gen-3 Rationale/etc., but
+        # "human" only appears in gen-0's Agent field — not in gen-1's prose.
+        results = agent_contributions("human", self.path)
+        self.assertEqual([g.number for g in results], [0])
+
+    def test_agent_contributions_returns_generation_objects(self) -> None:
+        results = agent_contributions("Codex", self.path)
+        self.assertEqual(len(results), 1)
+        self.assertIsInstance(results[0], Generation)
+        self.assertEqual(results[0].number, 2)
 
 
 if __name__ == "__main__":

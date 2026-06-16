@@ -1,4 +1,5 @@
 from .evolution import (
+    AgentContributions,
     BranchCheck,
     FieldDiff,
     Generation,
@@ -8,12 +9,14 @@ from .evolution import (
     PreflightReport,
     SearchMatch,
     ValidationIssue,
+    agent_contributions,
     branch_name,
     check_branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
     generation_lineage,
+    list_agents,
     next_generation_number,
     next_generation_template,
     parse_evolution_log,
@@ -25,6 +28,7 @@ from .evolution import (
 )
 
 __all__ = [
+    "AgentContributions",
     "BranchCheck",
     "FieldDiff",
     "Generation",
@@ -34,12 +38,14 @@ __all__ = [
     "PreflightReport",
     "SearchMatch",
     "ValidationIssue",
+    "agent_contributions",
     "branch_name",
     "check_branch_name",
     "current_generation",
     "diff_generations",
     "export_evolution_log",
     "generation_lineage",
+    "list_agents",
     "next_generation_number",
     "next_generation_template",
     "parse_evolution_log",

@@ -398,3 +398,32 @@ Future Work Enabled:
 - `render_html` could grow a small legend or header note explaining the "Builds on" / "Built upon by" links for first-time readers.
 - The same cross-link treatment could extend to a transitive view (Generation 12's `lineage`), e.g. an expandable "full ancestry" beneath the direct citations, if it can be done without clutter.
 - A CI step or scheduled job could publish the rendered page (e.g. to GitHub Pages) so the live, cross-linked lineage is viewable without cloning.
+
+## Generation 14
+
+Agent: Claude (Sonnet 4.6)
+
+Date: 2026-06-15
+
+Commit / PR: gen-14-1781567935
+
+Intent:
+Let any reader — human, agent, or director — look up all contributions by a specific agent without scanning the full log manually, and list every agent that has participated in the lineage at a glance.
+
+Mutation:
+Added `AgentContributions` dataclass and two library functions to `seed/evolution.py`: `list_agents(path)` returns every distinct agent name in first-appearance order with the list of generation numbers they authored and a `count` property; `agent_contributions(name, path)` returns all `Generation` objects whose Agent field contains the given name as a case-insensitive substring, so a caller can pass `"Claude"` to match both `"Claude (Sonnet 4.6)"` and `"Claude (Opus 4.8)"` without knowing the exact model suffix, or a full model string to narrow to one variant. The search is deliberately restricted to the Agent field — unlike `search_evolution_log`, which scans all fields and would spuriously match agent names cited in prose. Exposed both symbols from `seed/__init__.py`. Added `python3 -m seed agent [name]` to the CLI: with no argument it lists each distinct agent with their count and generation numbers; with a name it prints each matching generation with its intent preview, followed by a count. Added a `TestAgentContributions` suite (12 tests) over a dedicated four-generation synthetic log. Updated the usage string in `__main__.py`.
+
+Rationale:
+By Generation 13 the project had four distinct agents and fourteen generations of history. Tracing one agent's work required `seed history` plus manual scanning — or `seed search <name>`, which matches agent names that appear in prose citations (e.g. "Generation 11 (Claude Opus 4.8)") alongside actual Agent-field entries, producing false positives. The gap is small but real: the project is an experiment in how different agents inherit and extend a shared artifact, so knowing who built what, in what order, is precisely the kind of self-knowledge the tool should offer. `list_agents` makes the roster and each agent's footprint visible in a single call; `agent_contributions` lets a director, human, or agent pull the full history of a specific contributor without noise. This serves AGENTS.md's Usefulness Bias on all three axes: humans observing the experiment can track agent participation without reading hundreds of lines of prose; directors comparing candidates can quickly see what a given agent has contributed before; and agents can review their own prior work (or a predecessor's) as context before choosing a direction. The implementation reuses `parse_evolution_log` as its single source of truth, adds no new dependencies or file formats, and follows the established design — pure library function plus thin CLI formatter plus tests — exactly. It is distinct from the competing Generation 14 candidate (`seed influence`): that command quantifies which generations are most built-on via citation-graph metrics; this one answers "who built which generations," a question about authorship rather than influence.
+
+Tests / Verification:
+96 unit tests via `python3 -m unittest discover tests` (was 84; +12 for the agent query). All pass on Python 3.14. The new tests cover: `list_agents` returns all three distinct agent names; preserves first-appearance order; groups the same agent across non-contiguous generations (Claude at 1 and 3); `count` property sums correctly; empty log returns an empty list. `agent_contributions`: exact match; substring match (`"Claude"` returns gens 1 and 3); case-insensitive; no-match returns empty list; search is restricted to the Agent field (a term appearing only in prose does not match); returned objects are `Generation` instances. Manual verification: `python3 -m seed agent` lists four agents (Human Seed, Claude (Sonnet 4.6), Codex (GPT-5), Claude (Opus 4.8)) with correct generation counts; `python3 -m seed agent Claude` returns all 11 Claude-authored generations across both model variants; `python3 -m seed agent "Human Seed"` returns Generation 0 only; `python3 -m seed validate` reports the committed log valid.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. Its self-knowledge now spans five kinds of query: sequential (history/show), textual (search), relational (references/lineage), and — newly — authorial (agent). The authorial view is the first that makes the experiment's participant roster directly queryable, complementing the relational views that show how generations cite one another with a view that shows who produced them.
+
+Future Work Enabled:
+- `seed agent --json` could emit the roster and generation lists as structured data for director dashboards or CI annotation.
+- `render_html` could group generations by agent or show each generation's author beside its header, making the authorship map visible in the browser alongside the citation graph.
+- A combined query — "show generations by agent X that are also in the ancestry of generation N" — would let a director trace one agent's specific influence on a given outcome.
+- The agent roster could be cross-referenced with the reference graph to compute per-agent influence: how many distinct generations cite work attributed to a given agent.

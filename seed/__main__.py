@@ -2,12 +2,14 @@ import sys
 from pathlib import Path
 
 from .evolution import (
+    agent_contributions,
     branch_name,
     check_branch_name,
     current_generation,
     diff_generations,
     export_evolution_log,
     generation_lineage,
+    list_agents,
     next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
@@ -173,6 +175,30 @@ def main() -> None:
             sys.exit(1)
         _print_lineage(result)
 
+    elif command == "agent":
+        if len(args) > 1:
+            name = " ".join(args[1:])
+            results = agent_contributions(name, log_path)
+            if not results:
+                print(f"No generations found for agent matching {name!r}.", file=sys.stderr)
+                sys.exit(1)
+            for gen in results:
+                intent_preview = gen.intent.split("\n")[0][:72] + ("..." if len(gen.intent) > 72 else "")
+                print(f"Generation {gen.number}  [{gen.agent}]  {gen.date}")
+                if intent_preview:
+                    print(f"  Intent: {intent_preview}")
+                print()
+            total = len(results)
+            print(f"{total} {'generation' if total == 1 else 'generations'} found.")
+        else:
+            agents = list_agents(log_path)
+            if not agents:
+                print("No agents found.")
+                sys.exit(1)
+            for ac in agents:
+                gens_str = ", ".join(str(n) for n in ac.generations)
+                print(f"{ac.agent}  ({ac.count})  generations: {gens_str}")
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -190,7 +216,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N> | agent [name]]")
         sys.exit(1)
 
 

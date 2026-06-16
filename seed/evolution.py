@@ -96,6 +96,16 @@ class GenerationLineage:
     descendants: list[int]
 
 
+@dataclass
+class AgentContributions:
+    agent: str
+    generations: list[int]
+
+    @property
+    def count(self) -> int:
+        return len(self.generations)
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -569,6 +579,40 @@ def _reachable(start: int, edges: dict[int, list[int]]) -> set[int]:
         seen.add(node)
         stack.extend(edges.get(node, []))
     return seen
+
+
+def list_agents(path: Path | str = "EVOLUTION_LOG.md") -> list[AgentContributions]:
+    """Return each distinct agent name with the generations they authored.
+
+    Results are ordered by first appearance in the log so the list reflects
+    the order agents joined the lineage rather than an arbitrary sort. The
+    match is exact on the Agent field (after stripping whitespace), so two
+    entries with different capitalisations of the same name are counted
+    separately — preserving the log's own record rather than guessing intent.
+    """
+    gens = parse_evolution_log(path)
+    seen: dict[str, list[int]] = {}
+    for gen in gens:
+        name = gen.agent.strip()
+        if name:
+            seen.setdefault(name, []).append(gen.number)
+    return [AgentContributions(agent=name, generations=nums) for name, nums in seen.items()]
+
+
+def agent_contributions(
+    name: str, path: Path | str = "EVOLUTION_LOG.md"
+) -> list[Generation]:
+    """Return all generations whose Agent field contains *name* (case-insensitive).
+
+    Uses a substring match so a caller can pass ``"Claude"`` to match both
+    ``"Claude (Sonnet 4.6)"`` and ``"Claude (Opus 4.8)"`` without knowing the
+    exact model suffix, or pass a full model string to narrow to one variant.
+    The search is limited to the Agent field — unlike ``search_evolution_log``,
+    which scans all fields and would match agent names that appear in prose
+    citations.
+    """
+    lower = name.lower()
+    return [g for g in parse_evolution_log(path) if lower in g.agent.lower()]
 
 
 def _parse_generation(number: int, body: str) -> Generation:
