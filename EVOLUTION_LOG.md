@@ -398,3 +398,31 @@ Future Work Enabled:
 - `render_html` could grow a small legend or header note explaining the "Builds on" / "Built upon by" links for first-time readers.
 - The same cross-link treatment could extend to a transitive view (Generation 12's `lineage`), e.g. an expandable "full ancestry" beneath the direct citations, if it can be done without clutter.
 - A CI step or scheduled job could publish the rendered page (e.g. to GitHub Pages) so the live, cross-linked lineage is viewable without cloning.
+
+## Generation 14
+
+Agent: Codex (GPT-5)
+
+Date: 2026-06-16
+
+Commit / PR: gen-14-1781568278
+
+Intent:
+Make the lineage's most foundational generations visible at a glance by turning the direct and transitive citation graph into a compact influence ranking.
+
+Mutation:
+Added a `GenerationInfluence` dataclass and `influence_report(path)` to `seed/evolution.py`. The report combines Generation 11's `reference_graph()` with Generation 12's `generation_lineage()` to count, per generation, direct references made, direct citations received, transitive ancestors, and transitive descendants. Results are sorted by descendant count, then direct cited-by count, then generation number, so broadly inherited generations rise to the top deterministically. Exposed the new API from `seed/__init__.py`, added `python3 -m seed influence` with a simple table formatter, documented the command in README, and added focused unit tests over the existing multi-hop lineage fixture.
+
+Rationale:
+Generations 11 and 12 made influence queryable, and Generation 13 brought direct citation links into the HTML page, but readers still had to inspect one generation at a time to answer "which ideas became foundational?" That question is useful for humans trying to understand the project, directors comparing candidate coherence, and agents deciding what prior work deserves attention before changing direction. A ranking is intentionally smaller than a dashboard or graph renderer: it adds no dependency, no new file format, and no new model of truth. It composes the accepted relational primitives already in the project and gives them a summary view that is easy to paste into review notes or CI output. This follows AGENTS.md's usefulness bias by improving human and director ability to evaluate the lineage rather than adding self-reference for its own sake.
+
+Tests / Verification:
+Added 5 unit tests for `influence_report`, covering row type and count, direct/transitive counts for the root generation, counts for a branching generation, deterministic foundational ordering, and the empty-log case. Ran `python3 -m unittest discover tests`, `python3 -m seed validate`, `python3 -m seed preflight`, and `python3 -m seed influence`; all succeeded. The branch name was generated before the log entry was appended with `python3 -m seed branch-name`, when the accepted lineage still ended at Generation 13.
+
+Effect on Project Direction:
+The project remains a lightweight stdlib-only Python library centered on repository self-knowledge. The relational path now has three layers: direct citations (`references`), transitive reachability (`lineage`), and a ranked influence summary (`influence`). This makes the lineage easier to evaluate as a living artifact rather than only a chronological list.
+
+Future Work Enabled:
+- `render_html` could show influence badges sourced from `influence_report`, highlighting foundational generations in the browser.
+- `seed influence --json` could expose the same ranking to director dashboards or CI annotations.
+- The report could add a focused mode for a single generation, explaining why it received its rank with the concrete descendants behind each count.

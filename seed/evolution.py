@@ -96,6 +96,15 @@ class GenerationLineage:
     descendants: list[int]
 
 
+@dataclass
+class GenerationInfluence:
+    generation: int
+    direct_references: int
+    direct_referenced_by: int
+    ancestor_count: int
+    descendant_count: int
+
+
 _FIELD_MAP: dict[str, str] = {
     "agent": "agent",
     "date": "date",
@@ -549,6 +558,35 @@ def generation_lineage(
         generation=number,
         ancestors=sorted(_reachable(number, references)),
         descendants=sorted(_reachable(number, referenced_by)),
+    )
+
+
+def influence_report(path: Path | str = "EVOLUTION_LOG.md") -> list[GenerationInfluence]:
+    """Rank generations by how much later lineage builds on them.
+
+    ``reference_graph`` shows direct citations and ``generation_lineage`` shows
+    transitive reachability. This report combines both into one compact view:
+    direct citation counts, full ancestor counts, and full descendant counts.
+    Results are sorted by transitive descendant count first, then direct
+    referenced-by count, then generation number, so foundational generations
+    rise to the top while ties stay deterministic.
+    """
+    graph = reference_graph(path)
+    rows: list[GenerationInfluence] = []
+    for ref in graph:
+        lineage = generation_lineage(ref.generation, path)
+        rows.append(
+            GenerationInfluence(
+                generation=ref.generation,
+                direct_references=len(ref.references),
+                direct_referenced_by=len(ref.referenced_by),
+                ancestor_count=len(lineage.ancestors),
+                descendant_count=len(lineage.descendants),
+            )
+        )
+    return sorted(
+        rows,
+        key=lambda r: (-r.descendant_count, -r.direct_referenced_by, r.generation),
     )
 
 

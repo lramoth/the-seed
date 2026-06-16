@@ -10,6 +10,7 @@ from seed.evolution import (
     FieldDiff,
     Generation,
     GenerationDiff,
+    GenerationInfluence,
     GenerationLineage,
     GenerationReferences,
     SearchMatch,
@@ -19,6 +20,7 @@ from seed.evolution import (
     diff_generations,
     export_evolution_log,
     generation_lineage,
+    influence_report,
     next_generation_number,
     next_generation_template,
     parse_evolution_log,
@@ -1029,6 +1031,54 @@ class TestGenerationLineage(unittest.TestCase):
     def test_unknown_generation_raises(self):
         with self.assertRaises(ValueError):
             generation_lineage(99, self.path)
+
+
+class TestInfluenceReport(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        self.path = self._write_log(LINEAGE_LOG)
+        self.report = influence_report(self.path)
+        self.by_number = {r.generation: r for r in self.report}
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+
+    def test_returns_generation_influence_rows(self):
+        self.assertEqual(len(self.report), 5)
+        self.assertTrue(
+            all(isinstance(r, GenerationInfluence) for r in self.report)
+        )
+
+    def test_counts_direct_and_transitive_influence(self):
+        root = self.by_number[0]
+        self.assertEqual(root.direct_references, 0)
+        self.assertEqual(root.direct_referenced_by, 1)
+        self.assertEqual(root.ancestor_count, 0)
+        self.assertEqual(root.descendant_count, 4)
+
+    def test_counts_branching_generation(self):
+        branch_point = self.by_number[1]
+        self.assertEqual(branch_point.direct_references, 1)
+        self.assertEqual(branch_point.direct_referenced_by, 2)
+        self.assertEqual(branch_point.ancestor_count, 1)
+        self.assertEqual(branch_point.descendant_count, 3)
+
+    def test_sorts_by_foundational_influence(self):
+        self.assertEqual([r.generation for r in self.report], [0, 1, 2, 3, 4])
+
+    def test_empty_log_yields_empty_report(self):
+        empty_path = self._write_log("# Evolution Log\n")
+        try:
+            self.assertEqual(influence_report(empty_path), [])
+        finally:
+            empty_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

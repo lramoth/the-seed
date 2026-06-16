@@ -8,6 +8,7 @@ from .evolution import (
     diff_generations,
     export_evolution_log,
     generation_lineage,
+    influence_report,
     next_generation_template,
     parse_evolution_log,
     preflight_evolution_log,
@@ -173,6 +174,9 @@ def main() -> None:
             sys.exit(1)
         _print_lineage(result)
 
+    elif command == "influence":
+        _print_influence(influence_report(log_path))
+
     elif command == "validate":
         issues = validate_evolution_log(log_path)
         if not issues:
@@ -190,7 +194,7 @@ def main() -> None:
         sys.exit(1)
 
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N> | influence]")
         sys.exit(1)
 
 
@@ -226,6 +230,18 @@ def _print_lineage(lineage: "GenerationLineage") -> None:  # noqa: F821
     print(f"Generation {lineage.generation}")
     print(f"  Builds on (transitively):     {ancestors}")
     print(f"  Built upon by (transitively): {descendants}")
+
+
+def _print_influence(rows) -> None:
+    print("Generation  Descendants  Directly cited by  Ancestors  Direct refs")
+    for row in rows:
+        print(
+            f"{row.generation:>10}  "
+            f"{row.descendant_count:>11}  "
+            f"{row.direct_referenced_by:>17}  "
+            f"{row.ancestor_count:>9}  "
+            f"{row.direct_references:>11}"
+        )
 
 
 def _print_generation(gen: "Generation") -> None:  # noqa: F821
