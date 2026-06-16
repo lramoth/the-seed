@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, asdict
 from pathlib import Path
 import html
@@ -94,6 +95,21 @@ class GenerationLineage:
     generation: int
     ancestors: list[int]
     descendants: list[int]
+
+
+@dataclass
+class CitationChain:
+    from_number: int
+    to_number: int
+    path: list[int]
+
+    @property
+    def exists(self) -> bool:
+        return bool(self.path)
+
+    @property
+    def length(self) -> int:
+        return max(0, len(self.path) - 1)
 
 
 _FIELD_MAP: dict[str, str] = {
@@ -569,6 +585,54 @@ def _reachable(start: int, edges: dict[int, list[int]]) -> set[int]:
         seen.add(node)
         stack.extend(edges.get(node, []))
     return seen
+
+
+def citation_chain(
+    from_n: int, to_n: int, path: Path | str = "EVOLUTION_LOG.md"
+) -> CitationChain:
+    """Find the shortest citation path between two generations.
+
+    Treats the citation graph as undirected (an edge exists between A and B if
+    either cites the other) and runs BFS from ``from_n`` to ``to_n``.  The
+    result is the minimum-hop sequence of generation numbers connecting them —
+    for example ``[5, 8, 11]`` means Gen 5 and Gen 11 are two citation hops
+    apart via Gen 8.  Returns a CitationChain with an empty path if the two
+    generations are in disconnected components.
+
+    Raises ValueError if either generation number is absent from the log.
+    """
+    graph = reference_graph(path)
+    nodes = {r.generation for r in graph}
+
+    if from_n not in nodes:
+        raise ValueError(f"Generation {from_n} not found in evolution log.")
+    if to_n not in nodes:
+        raise ValueError(f"Generation {to_n} not found in evolution log.")
+
+    if from_n == to_n:
+        return CitationChain(from_number=from_n, to_number=to_n, path=[from_n])
+
+    adj: dict[int, list[int]] = {r.generation: [] for r in graph}
+    for r in graph:
+        for cited in r.references:
+            adj[r.generation].append(cited)
+            adj[cited].append(r.generation)
+
+    visited: set[int] = {from_n}
+    queue: deque[list[int]] = deque([[from_n]])
+    while queue:
+        current = queue.popleft()
+        node = current[-1]
+        for neighbor in adj.get(node, []):
+            if neighbor in visited:
+                continue
+            new_path = current + [neighbor]
+            if neighbor == to_n:
+                return CitationChain(from_number=from_n, to_number=to_n, path=new_path)
+            visited.add(neighbor)
+            queue.append(new_path)
+
+    return CitationChain(from_number=from_n, to_number=to_n, path=[])
 
 
 def _parse_generation(number: int, body: str) -> Generation:

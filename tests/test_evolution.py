@@ -7,6 +7,7 @@ import re
 
 from seed.evolution import (
     BranchCheck,
+    CitationChain,
     FieldDiff,
     Generation,
     GenerationDiff,
@@ -15,6 +16,7 @@ from seed.evolution import (
     SearchMatch,
     branch_name,
     check_branch_name,
+    citation_chain,
     current_generation,
     diff_generations,
     export_evolution_log,
@@ -1029,6 +1031,139 @@ class TestGenerationLineage(unittest.TestCase):
     def test_unknown_generation_raises(self):
         with self.assertRaises(ValueError):
             generation_lineage(99, self.path)
+
+
+# Two isolated sub-graphs for testing disconnected generations:
+#   Group A: 0 - 1 (direct citation)
+#   Group B: 2 - 3 (direct citation, no edges to group A)
+DISCONNECTED_LOG = textwrap.dedent("""\
+    # Evolution Log
+
+    ## Generation 0
+
+    Agent: Founder
+    Date: 2026-01-01
+    Commit / PR: gen-0
+    Intent: Start.
+    Mutation: Initial documents.
+    Rationale: No prior art.
+    Tests / Verification: Not applicable.
+    Effect on Project Direction: Begin.
+    Future Work Enabled: Invite contributions.
+
+    ## Generation 1
+
+    Agent: Agent A
+    Date: 2026-01-02
+    Commit / PR: gen-1-1000000001
+    Intent: Build on the seed.
+    Mutation: First feature.
+    Rationale: Extends Generation 0.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Forward.
+    Future Work Enabled: More features.
+
+    ## Generation 2
+
+    Agent: Agent B
+    Date: 2026-01-03
+    Commit / PR: gen-2-1000000002
+    Intent: Start a parallel effort.
+    Mutation: Unrelated feature.
+    Rationale: No reference to prior generations.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Sideways.
+    Future Work Enabled: Converge later.
+
+    ## Generation 3
+
+    Agent: Agent C
+    Date: 2026-01-04
+    Commit / PR: gen-3-1000000003
+    Intent: Extend the parallel effort.
+    Mutation: More of the unrelated feature.
+    Rationale: Extends Generation 2.
+    Tests / Verification: Tests pass.
+    Effect on Project Direction: Sideways.
+    Future Work Enabled: Maybe converge.
+""")
+
+
+class TestCitationChain(unittest.TestCase):
+    def _write_log(self, text):
+        tmp = NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        )
+        tmp.write(text)
+        tmp.close()
+        return Path(tmp.name)
+
+    def setUp(self):
+        self.path = self._write_log(LINEAGE_LOG)
+        self.disconnected_path = self._write_log(DISCONNECTED_LOG)
+
+    def tearDown(self):
+        self.path.unlink(missing_ok=True)
+        self.disconnected_path.unlink(missing_ok=True)
+
+    def test_returns_citation_chain_type(self):
+        result = citation_chain(0, 3, self.path)
+        self.assertIsInstance(result, CitationChain)
+
+    def test_same_generation_returns_trivial_path(self):
+        result = citation_chain(2, 2, self.path)
+        self.assertEqual(result.path, [2])
+        self.assertTrue(result.exists)
+        self.assertEqual(result.length, 0)
+
+    def test_direct_neighbor_length_one(self):
+        result = citation_chain(0, 1, self.path)
+        self.assertTrue(result.exists)
+        self.assertEqual(result.length, 1)
+        self.assertEqual(result.path[0], 0)
+        self.assertEqual(result.path[-1], 1)
+
+    def test_multi_hop_chain_root_to_leaf(self):
+        # Graph: 0-1-2-3; shortest undirected path is [0,1,2,3], length 3.
+        result = citation_chain(0, 3, self.path)
+        self.assertTrue(result.exists)
+        self.assertEqual(result.path[0], 0)
+        self.assertEqual(result.path[-1], 3)
+        self.assertEqual(result.length, 3)
+
+    def test_chain_across_branch(self):
+        # Gen 4 branches off Gen 1; shortest path 4 to 3 is [4,1,2,3], length 3.
+        result = citation_chain(4, 3, self.path)
+        self.assertTrue(result.exists)
+        self.assertEqual(result.path[0], 4)
+        self.assertEqual(result.path[-1], 3)
+        self.assertEqual(result.length, 3)
+
+    def test_chain_is_shortest(self):
+        # 0 to 4: direct via 1 gives [0,1,4] — length 2, not the longer 0-1-2-3
+        # path.  We can only assert the length; BFS guarantees minimum hops.
+        result = citation_chain(0, 4, self.path)
+        self.assertEqual(result.length, 2)
+
+    def test_no_path_returns_empty(self):
+        # Gen 0-1 and Gen 2-3 are disconnected in DISCONNECTED_LOG.
+        result = citation_chain(0, 3, self.disconnected_path)
+        self.assertFalse(result.exists)
+        self.assertEqual(result.path, [])
+        self.assertEqual(result.length, 0)
+
+    def test_from_and_to_numbers_recorded(self):
+        result = citation_chain(1, 4, self.path)
+        self.assertEqual(result.from_number, 1)
+        self.assertEqual(result.to_number, 4)
+
+    def test_unknown_from_raises(self):
+        with self.assertRaises(ValueError):
+            citation_chain(99, 0, self.path)
+
+    def test_unknown_to_raises(self):
+        with self.assertRaises(ValueError):
+            citation_chain(0, 99, self.path)
 
 
 if __name__ == "__main__":

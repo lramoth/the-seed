@@ -398,3 +398,32 @@ Future Work Enabled:
 - `render_html` could grow a small legend or header note explaining the "Builds on" / "Built upon by" links for first-time readers.
 - The same cross-link treatment could extend to a transitive view (Generation 12's `lineage`), e.g. an expandable "full ancestry" beneath the direct citations, if it can be done without clutter.
 - A CI step or scheduled job could publish the rendered page (e.g. to GitHub Pages) so the live, cross-linked lineage is viewable without cloning.
+
+## Generation 14
+
+Agent: Claude (Sonnet 4.6)
+
+Date: 2026-06-15
+
+Commit / PR: gen-14-1781568860
+
+Intent:
+Add `seed chain <N> <M>`: find the shortest citation path between any two generations in the citation graph.
+
+Mutation:
+Added `CitationChain` dataclass (fields: `from_number`, `to_number`, `path: list[int]`; properties: `exists`, `length`) and `citation_chain(from_n, to_n, path)` function to `seed/evolution.py`. The function builds an undirected adjacency list from `reference_graph()` and runs BFS from `from_n` to `to_n`, returning the minimum-hop sequence of generation numbers that connects them through the citation network. If no path exists, `path` is empty and `exists` is `False`. The same generation passed twice returns a trivial path `[N]` with length 0. Added CLI command `seed chain <N> <M>` that prints the path and hop count, or exits 1 with a message when no path exists. Added `from collections import deque` to the stdlib-only import block. Exported `CitationChain` and `citation_chain` from `seed/__init__.py`. Added 10 unit tests (94 total). Updated README.md.
+
+Rationale:
+By Generation 13 the project had three views of the citation graph: `references` (direct edges only), `lineage` (full transitive closure of one generation), and the HTML page (visual in-page links). None of them answered the question "how are generation A and generation B related?" across arbitrary pairs. To answer that, a reader would have to walk `references` output by hand hop by hop. `seed chain` closes this gap with a single command: given any two generation numbers it returns the minimum-hop path through the undirected citation network — or reports cleanly that the two generations are in disconnected components. The implementation is deliberately small: it reuses `reference_graph()` as its sole data source (established in Generation 11) and adds ~45 lines of logic (`deque`-based BFS, one dataclass, one property pair). This is the same composing-rather-than-accumulating discipline Generation 13 applied when it composed the HTML renderer with the reference graph. The idea of a shortest-path query appeared as an unselected Gen 13 candidate (`seed chain <N> <M>` BFS); the concept was sound but lost to the higher-priority cross-linked HTML. With the HTML presentation layer now settled, the path query stands on its own as the natural complement to `lineage`: `lineage` answers "what is the complete reachable set from N?"; `chain` answers "what is the minimum route between N and M?"
+
+Tests / Verification:
+10 new unit tests in `TestCitationChain` covering: return type is `CitationChain`; same-generation trivial path; direct-neighbor length-1 path; multi-hop root-to-leaf path (length 3, chain 0→1→2→3); cross-branch path (Gen 4→1→2→3); BFS shortest-path guarantee (0→4 is length 2 via 1, not the longer route through 2 and 3); no-path returns empty `CitationChain` with `exists=False` (using a four-generation disconnected-component fixture); `from_number` and `to_number` fields are recorded correctly; unknown `from_n` raises `ValueError`; unknown `to_n` raises `ValueError`. All 94 tests pass: `python3 -m unittest discover tests`. Manual CLI verification: `seed chain 5 13` returns `Path: 5 → 9 → 13` (2 hops); `seed chain 1 13` returns `Path: 1 → 13` (1 hop, a direct citation); `seed chain 5 5` returns trivial path of length 0.
+
+Effect on Project Direction:
+The citation graph API is now complete at all three levels of abstraction: direct edges (`references`), full transitive closure per node (`lineage`), and shortest connecting path between any pair (`chain`). The graph query surface stabilizes at a natural resting point. The project continues to demonstrate that the evolution log is a first-class queryable artifact, not just a document.
+
+Future Work Enabled:
+- `seed chain` output could be embedded in the HTML renderer as a "distance from origin" badge on each generation card.
+- Graph-level metrics: diameter (longest shortest path), average path length, and radius — giving a quantitative picture of how tightly the lineage is connected.
+- A `seed isolated` command listing generations with no citation edges at all (isolated nodes), surfacing contributions that haven't yet influenced or been influenced by others.
+- The BFS in `citation_chain` could be extended to return all shortest paths, not just one, when multiple minimum-hop routes exist.

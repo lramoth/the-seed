@@ -4,6 +4,7 @@ from pathlib import Path
 from .evolution import (
     branch_name,
     check_branch_name,
+    citation_chain,
     current_generation,
     diff_generations,
     export_evolution_log,
@@ -189,8 +190,32 @@ def main() -> None:
             print(f"- {prefix}{issue.message}", file=sys.stderr)
         sys.exit(1)
 
+    elif command == "chain" and len(args) == 3:
+        try:
+            from_n = int(args[1])
+            to_n = int(args[2])
+        except ValueError:
+            print("Usage: python -m seed chain <N> <M>", file=sys.stderr)
+            sys.exit(1)
+        try:
+            result = citation_chain(from_n, to_n, log_path)
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            sys.exit(1)
+        if not result.exists:
+            print(
+                f"No citation path found between generations {from_n} and {to_n}.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        arrow = " → ".join(str(n) for n in result.path)
+        hop_word = "hop" if result.length == 1 else "hops"
+        print(f"Generation {from_n} → {to_n}")
+        print(f"Path:   {arrow}")
+        print(f"Length: {result.length} {hop_word}")
+
     else:
-        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N>]")
+        print("Usage: python -m seed [current | history | show <N> | validate | export | html | preflight | branch-name | template | check-branch <branch> | diff <N> <M> | search <term> | references [N] | lineage <N> | chain <N> <M>]")
         sys.exit(1)
 
 
